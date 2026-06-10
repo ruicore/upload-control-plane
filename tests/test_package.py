@@ -1,4 +1,4 @@
-from industrial_upload_control_plane import __version__
+from upload_control_plane import __version__
 
 
 def test_package_version() -> None:
