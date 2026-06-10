@@ -1,0 +1,15 @@
+site_name: Upload Control Plane
+site_description: Production-oriented resumable multipart upload control plane.
+repo_name: upload-control-plane
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - toc.follow
+nav:
+  - Overview: index.md
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true

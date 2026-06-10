@@ -1,0 +1,87 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "upload-control-plane"
+version = "0.1.0"
+description = "Production-oriented resumable multipart upload control plane for AI and robotics data ingestion."
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+authors = [
+  { name = "ruicore" },
+]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+]
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "mypy>=1.18.2",
+  "pre-commit>=4.3.0",
+  "pytest>=8.4.2",
+  "ruff>=0.13.2",
+]
+docs = [
+  "mkdocs-material>=9.6.20",
+]
+
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/industrial_upload_control_plane"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "ARG",
+  "B",
+  "C4",
+  "E",
+  "F",
+  "I",
+  "N",
+  "PTH",
+  "RUF",
+  "SIM",
+  "UP",
+  "W",
+]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["industrial_upload_control_plane"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+mypy_path = "src"
+files = ["src", "tests"]
+pretty = true
+show_error_codes = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = [
+  "--strict-config",
+  "--strict-markers",
+]
+testpaths = ["tests"]
