@@ -11,6 +11,7 @@ from upload_control_plane.api.errors import (
 )
 from upload_control_plane.api.middleware import request_id_middleware
 from upload_control_plane.api.projects import router as projects_router
+from upload_control_plane.api.upload_sessions import router as upload_sessions_router
 from upload_control_plane.api.upload_tasks import router as upload_tasks_router
 from upload_control_plane.config import Settings, get_settings
 
@@ -29,6 +30,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.include_router(projects_router)
     app.include_router(upload_tasks_router)
+    app.include_router(upload_sessions_router)
 
     @app.get("/healthz", tags=["health"])
     def healthz() -> dict[str, str]:
