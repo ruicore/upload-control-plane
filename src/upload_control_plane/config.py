@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     database_url: str = "postgresql+psycopg://upload:upload@localhost:25432/upload"
+    database_echo: bool = False
+    database_pool_pre_ping: bool = True
 
     s3_endpoint_url: str = "http://localhost:19000"
     s3_public_endpoint_url: str = "http://localhost:19000"

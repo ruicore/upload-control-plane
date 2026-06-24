@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 def main() -> None:
-    print("No development seed data is defined in T00.")
+    print("T02 persistence base does not define seed data yet; T02 schema/seed agent owns this.")
 
 
 if __name__ == "__main__":
