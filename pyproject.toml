@@ -22,6 +22,7 @@ classifiers = [
 ]
 dependencies = [
   "alembic>=1.16",
+  "boto3>=1.43.36",
   "fastapi>=0.116.2",
   "psycopg[binary]>=3.2.10",
   "pydantic-settings>=2.10.1",
@@ -31,6 +32,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+  "boto3-stubs[s3]>=1.43.36",
   "httpx>=0.28.1",
   "mypy>=1.18.2",
   "pre-commit>=4.3.0",
@@ -93,3 +95,6 @@ addopts = [
   "--strict-markers",
 ]
 testpaths = ["tests"]
+markers = [
+  "integration: tests that require external services such as local MinIO",
+]
