@@ -156,6 +156,36 @@ Acceptance criteria:
 - Abort is idempotent and never deletes completed final objects.
 - Tenant isolation tests pass.
 
+### Phase 6.5 - Development-only Manual Browser Uploader
+
+Only implement after upload task creation and the upload session runtime API support the minimum successful loop:
+
+```text
+create upload task -> presign parts -> browser PUT parts to storage -> ack parts -> complete
+```
+
+Deliverables:
+
+- `tools/manual-uploader` Vite-based browser tool.
+- Manual file picker.
+- Form fields for API URL, API key, project ID, object metadata, part size, and concurrency.
+- UploadTask creation through `POST /v1/projects/{project_id}/upload-tasks`.
+- Part presign through the public upload API.
+- Direct browser `PUT` to each presigned URL.
+- Optional ack after each successful part.
+- Complete, pause, resume, abort, and status controls.
+- Local development state for progress/resume diagnostics.
+- Makefile command such as `make manual-uploader`.
+
+Acceptance criteria:
+
+- The browser tool uploads a multi-part file to local MinIO without sending file bytes to FastAPI.
+- It runs from `http://localhost:5173` and exercises real CORS behavior.
+- It uses the same API contracts as `uploadctl`; no manual-uploader-only backend route is added.
+- It does not persist presigned URLs.
+- It redacts presigned URL query strings in visible diagnostics and logs.
+- It is documented as a development verification tool, not a product UI.
+
 ### Phase 7 - Python CLI Uploader
 
 Deliverables:

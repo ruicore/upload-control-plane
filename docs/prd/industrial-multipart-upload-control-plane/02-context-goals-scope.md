@@ -113,7 +113,7 @@ observability
 The system must support:
 
 1. Creating an upload session for one large file.
-2. Creating a batch upload for a logical dataset containing multiple file uploads.
+2. Creating an UploadTask that can contain one or more UploadObjects for multi-file ingestion.
 3. Generating presigned URLs for one or more part numbers.
 4. Direct client-to-MinIO part upload.
 5. Client resume after interruption.
@@ -137,11 +137,12 @@ The system must support:
 23. Providing unified audit events for authorization, dataset, device, download, deletion, and upload actions.
 24. Providing a durable outbox for recoverable event delivery to EMQX/WebSocket/webhook workers.
 25. Providing a CLI uploader for E2E testing and real demonstration.
-26. Providing OpenAPI documentation.
-27. Providing deterministic local development through Docker Compose.
-28. Providing integration tests using real PostgreSQL and real MinIO.
-29. Providing failure injection tests.
-30. Providing benchmark scripts.
+26. Providing a development-only manual browser uploader for human verification of browser direct-upload behavior.
+27. Providing OpenAPI documentation.
+28. Providing deterministic local development through Docker Compose.
+29. Providing integration tests using real PostgreSQL and real MinIO.
+30. Providing failure injection tests.
+31. Providing benchmark scripts.
 
 ### 5.2 Non-functional goals
 
@@ -165,7 +166,7 @@ The system should demonstrate:
 
 The first complete design does not need to implement:
 
-- Browser UI dashboard, although API design should allow it later.
+- Product browser UI dashboard, although API design should allow it later. A development-only manual uploader under `tools/` is allowed for local verification.
 - Real payment or quota billing.
 - Real enterprise SSO.
 - Multi-region active-active object replication in the initial product stages.

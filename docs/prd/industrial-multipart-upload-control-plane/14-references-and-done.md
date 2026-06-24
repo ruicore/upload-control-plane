@@ -159,6 +159,9 @@ Codex must follow these rules:
 21. Record audit events for permission, device credential, download, delete, restore, and purge actions.
 22. Insert outbox events in the same transaction as the domain change they describe.
 23. Keep Go and MQTT components optional until Python backend, CLI, authorization, and outbox behavior are correct.
+24. Keep the manual browser uploader under `tools/manual-uploader` as a development-only verification tool.
+25. Do not add manual-uploader-only backend routes or file-byte proxy endpoints.
+26. Do not persist presigned URLs in browser local storage, logs, audit events, or visible diagnostics.
 
 ---
 

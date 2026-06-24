@@ -36,7 +36,7 @@ Previous: [Context, Goals, and Scope](02-context-goals-scope.md) | Index: [READM
 |                    |   |                    |
 | - sessions         |   | - multipart upload |
 | - parts            |   | - part storage     |
-| - batches          |   | - final objects    |
+| - tasks/objects    |   | - final objects    |
 | - events           |   |                    |
 +--------------------+   +---------+----------+
                                    ^

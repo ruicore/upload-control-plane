@@ -147,9 +147,9 @@ POST   /v1/projects/{project_id}/datasets/{dataset_id}/restore
 DELETE /v1/projects/{project_id}/datasets/{dataset_id}/purge
 GET    /v1/projects/{project_id}/datasets/{dataset_id}/preview
 POST   /v1/projects/{project_id}/datasets/{dataset_id}/download-url
-PATCH  /v1/projects/{project_id}/datasets/batch/rename
-PATCH  /v1/projects/{project_id}/datasets/batch/metadata
-PATCH  /v1/projects/{project_id}/datasets/batch/tags
+PATCH  /v1/projects/{project_id}/datasets/bulk/rename
+PATCH  /v1/projects/{project_id}/datasets/bulk/metadata
+PATCH  /v1/projects/{project_id}/datasets/bulk/tags
 ```
 
 Tag APIs:

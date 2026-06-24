@@ -183,6 +183,45 @@ Optional force-pause behavior:
 
 The client must not assume the backend can cancel an already issued presigned URL. Server-side pause prevents future control-plane scheduling and signing, while client-side pause controls local upload workers.
 
+### 23.10 Development-only manual browser uploader
+
+The repository may include a small browser tool for human verification of the upload flow.
+
+Purpose:
+
+- Manually verify browser file selection, client-side slicing, presign, direct MinIO/S3 part upload, ack, complete, pause, resume, and abort.
+- Exercise real browser CORS behavior from `http://localhost:5173`.
+- Make local development and demos easier after the upload API minimum loop exists.
+
+Non-purpose:
+
+- It is not a product dashboard.
+- It must not own project, dataset, device, permission, or storage-policy management.
+- It must not define new API contracts.
+- It must not send file bytes to the FastAPI backend.
+
+Required behavior:
+
+- Calls the same public control-plane APIs as the CLI.
+- Uploads part bytes only through presigned URLs.
+- Allows manual entry of `apiUrl`, `apiKey`, `projectId`, object metadata, part size, and concurrency.
+- Stores local development upload state only for resume/debug convenience.
+- Must not persist presigned URLs in local storage or logs.
+- Redacts presigned URL query strings from any visible diagnostics.
+
+Recommended local command:
+
+```bash
+make manual-uploader
+```
+
+Recommended implementation:
+
+- Vite.
+- TypeScript.
+- React or another lightweight frontend stack chosen when the tool is implemented.
+- No backend bundling requirement; run it as a separate local dev server.
+
 ---
 
 
@@ -253,7 +292,6 @@ upload-control-plane/
 |       |       +-- tags.py
 |       |       +-- uploads.py
 |       |       +-- upload_tasks.py
-|       |       +-- batches.py
 |       |       +-- storage_policies.py
 |       |       +-- validation.py
 |       |       +-- downloads.py
@@ -279,7 +317,6 @@ upload-control-plane/
 |       |   +-- tag_service.py
 |       |   +-- upload_service.py
 |       |   +-- upload_task_service.py
-|       |   +-- batch_service.py
 |       |   +-- part_service.py
 |       |   +-- completion_service.py
 |       |   +-- abort_service.py
@@ -334,6 +371,18 @@ upload-control-plane/
 |   +-- integration/
 |   +-- e2e/
 |   +-- failure_injection/
++-- tools/
+|   +-- manual-uploader/              # development-only browser verification tool
+|       +-- package.json
+|       +-- vite.config.ts
+|       +-- index.html
+|       +-- src/
+|           +-- main.tsx
+|           +-- ManualUploader.tsx
+|           +-- controlPlaneClient.ts
+|           +-- browserMultipartUploader.ts
+|           +-- fileParts.ts
+|           +-- uploadState.ts
 +-- docker-compose.yml
 +-- Dockerfile
 +-- pyproject.toml
@@ -354,6 +403,7 @@ upload-control-plane/
 - Optional `mqtt` maps MQTT command DTOs to the same application commands used by HTTP.
 - Optional `infrastructure.messaging` owns broker connectivity, topic subscription, publishing, TLS, and reconnect behavior.
 - `cli` uses HTTP API only; it must not import backend application services.
+- `tools/manual-uploader` is a development-only browser client that uses HTTP API plus presigned URLs only; it must not import backend application services.
 - MQTT code must not implement a separate upload state machine or bypass application services.
 - Permission evaluation should live in one application-level authorization service, not be reimplemented in each route.
 - API responses may include `effective_permissions`, but the database source of truth is `permission_grants`.
@@ -431,6 +481,8 @@ Important distinction:
 - `S3_PUBLIC_ENDPOINT_URL` is used when generating presigned URLs for clients running on the host or in a browser.
 
 For local Docker Compose, the backend talks to MinIO internally at `http://minio:9000`, while host clients and local browsers reach MinIO at `http://localhost:9000`.
+
+`http://localhost:5173` is reserved for the development-only manual browser uploader. Keeping it on a separate origin is intentional because it verifies browser CORS and signed-header behavior.
 
 Do not generate a presigned URL against `http://minio:9000` and then replace the host with `localhost:9000` as a string operation. That can break signatures depending on the provider and signing mode.
 
