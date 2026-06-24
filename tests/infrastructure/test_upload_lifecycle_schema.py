@@ -168,9 +168,8 @@ def test_upload_lifecycle_constraints_include_idempotency_and_part_bounds() -> N
     assert "expected_size_bytes >= 0" in upload_parts_checks
 
 
-def test_upload_lifecycle_scope_excludes_batches_and_idempotency_records() -> None:
+def test_upload_lifecycle_scope_excludes_batches() -> None:
     assert "upload_batches" not in Base.metadata.tables
-    assert "idempotency_records" not in Base.metadata.tables
     assert all("batch_id" not in table.c for table in Base.metadata.tables.values())
 
 
@@ -187,4 +186,3 @@ def test_upload_lifecycle_migration_follows_dataset_governance_revision() -> Non
     assert '"source_device_code", sa.Text()' in migration
     assert '"upload_batches"' not in migration
     assert '"batch_id"' not in migration
-    assert '"idempotency_records"' not in migration

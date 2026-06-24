@@ -16,24 +16,29 @@ def test_alembic_config_points_at_migrations_directory() -> None:
     assert config.get_main_option("sqlalchemy.url") == Settings().database_url
 
 
-def test_alembic_has_upload_lifecycle_head_revision() -> None:
+def test_alembic_has_records_schema_head_revision() -> None:
     script = ScriptDirectory.from_config(build_alembic_config(Settings()))
 
-    assert script.get_current_head() == "20260624_0004"
+    assert script.get_current_head() == "20260624_0005"
 
 
-def test_migration_target_metadata_has_upload_lifecycle_schema_tables() -> None:
+def test_migration_target_metadata_has_records_schema_tables() -> None:
     assert set(Base.metadata.tables) == {
         "api_keys",
+        "audit_events",
+        "dataset_validation_results",
         "dataset_tags",
         "datasets",
         "devices",
+        "idempotency_records",
+        "outbox_events",
         "permission_grants",
         "projects",
         "storage_policies",
         "tag_categories",
         "tags",
         "tenants",
+        "upload_events",
         "upload_objects",
         "upload_parts",
         "upload_sessions",
