@@ -102,7 +102,7 @@ Deliverables:
 - FastAPI app with `/healthz`.
 - Pydantic Settings configuration.
 - `docker-compose.yml` with `api`, `worker`, `postgres`, `minio`, and `minio-init`.
-- MinIO S3 API on `localhost:9000`, MinIO Console on `localhost:9001`, PostgreSQL on `localhost:15432`.
+- Documented host port defaults for API, MinIO S3 API, MinIO Console, and PostgreSQL while preserving container-internal ports.
 - Makefile or equivalent scripts for `dev-up`, `migrate`, `seed-dev`, `test`, and `dev-down`.
 - Project dependencies for FastAPI, Pydantic Settings, pytest, ruff, mypy, and local runtime.
 
@@ -110,8 +110,8 @@ Acceptance:
 
 - `make dev-up` succeeds.
 - `make test` succeeds.
-- `curl http://localhost:8000/healthz` returns `{"status":"ok","service":"upload-control-plane"}` or the documented equivalent.
-- Browser can open `http://localhost:9001`.
+- `curl http://localhost:18080/healthz` returns `{"status":"ok","service":"upload-control-plane"}` or the documented equivalent.
+- Browser can open the documented MinIO Console URL, defaulting to `http://localhost:19001`.
 
 Out of scope:
 

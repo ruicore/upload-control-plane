@@ -423,7 +423,7 @@ APP_ENV=local
 APP_NAME=upload-control-plane
 DATABASE_URL=postgresql+psycopg://upload:upload@postgres:5432/upload
 S3_ENDPOINT_URL=http://minio:9000
-S3_PUBLIC_ENDPOINT_URL=http://localhost:9000
+S3_PUBLIC_ENDPOINT_URL=http://localhost:19000
 S3_ACCESS_KEY=minioadmin
 S3_SECRET_KEY=minioadmin
 S3_REGION=us-east-1
@@ -480,11 +480,11 @@ Important distinction:
 - `S3_ENDPOINT_URL` is used by the backend for internal storage control calls inside Docker/network.
 - `S3_PUBLIC_ENDPOINT_URL` is used when generating presigned URLs for clients running on the host or in a browser.
 
-For local Docker Compose, the backend talks to MinIO internally at `http://minio:9000`, while host clients and local browsers reach MinIO at `http://localhost:9000`.
+For local Docker Compose, the backend talks to MinIO internally at `http://minio:9000`, while host clients and local browsers reach MinIO at the documented host S3 URL, defaulting to `http://localhost:19000`.
 
 `http://localhost:5173` is reserved for the development-only manual browser uploader. Keeping it on a separate origin is intentional because it verifies browser CORS and signed-header behavior.
 
-Do not generate a presigned URL against `http://minio:9000` and then replace the host with `localhost:9000` as a string operation. That can break signatures depending on the provider and signing mode.
+Do not generate a presigned URL against `http://minio:9000` and then replace the host with `localhost:19000` as a string operation. That can break signatures depending on the provider and signing mode.
 
 Recommended implementation:
 
@@ -547,21 +547,26 @@ jaeger
 Minimum Compose behavior:
 
 - Start PostgreSQL.
-- Start MinIO S3 API and expose it on `http://localhost:9000`.
-- Start MinIO Console and expose it on `http://localhost:9001` for browser inspection.
+- Start MinIO S3 API and expose it on the documented host port, defaulting to `http://localhost:19000`.
+- Start MinIO Console and expose it on the documented host port, defaulting to `http://localhost:19001` for browser inspection.
 - Create required bucket.
 - Run DB migrations.
 - Start API.
 - Start cleanup worker.
 
-Required local port mapping:
+Default local port mapping:
 
 ```text
-api:      localhost:8000 -> api:8000
-postgres: localhost:15432 -> postgres:5432
-minio:    localhost:9000 -> minio:9000
-console:  localhost:9001 -> minio:9001
+api:      localhost:18080 -> api:8000
+postgres: localhost:25432 -> postgres:5432
+minio:    localhost:19000 -> minio:9000
+console:  localhost:19001 -> minio:9001
 ```
+
+The host ports are configurable with `API_HOST_PORT`, `POSTGRES_HOST_PORT`,
+`MINIO_HOST_PORT`, and `MINIO_CONSOLE_HOST_PORT`; container-internal ports stay
+`8000`, `5432`, `9000`, and `9001`. When overriding `MINIO_HOST_PORT`, also set
+`S3_PUBLIC_ENDPOINT_URL` to the matching host URL.
 
 Example commands:
 

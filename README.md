@@ -96,6 +96,36 @@ uv run mypy src tests
 uv run pytest
 ```
 
+Start the local T00 runtime with Docker Compose:
+
+```bash
+make dev-up
+curl http://localhost:18080/healthz
+make dev-down
+```
+
+On Windows hosts without GNU Make, use the equivalent PowerShell script:
+
+```powershell
+.\scripts\dev.ps1 dev-up
+Invoke-RestMethod http://localhost:18080/healthz
+.\scripts\dev.ps1 dev-down
+```
+
+Default host ports avoid common local conflicts while preserving container-internal ports:
+
+```text
+API:           http://localhost:18080 -> api:8000
+PostgreSQL:    localhost:25432       -> postgres:5432
+MinIO S3 API:  http://localhost:19000 -> minio:9000
+MinIO Console: http://localhost:19001 -> minio:9001
+```
+
+Override them with `API_HOST_PORT`, `POSTGRES_HOST_PORT`, `MINIO_HOST_PORT`, and
+`MINIO_CONSOLE_HOST_PORT`. If `MINIO_HOST_PORT` changes, set
+`S3_PUBLIC_ENDPOINT_URL` to the matching host URL so future presigned URLs use a
+host-reachable endpoint.
+
 Install pre-commit hooks with:
 
 ```bash

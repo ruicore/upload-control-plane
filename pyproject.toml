@@ -20,10 +20,16 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Typing :: Typed",
 ]
-dependencies = []
+dependencies = [
+  "fastapi>=0.116.2",
+  "psycopg[binary]>=3.2.10",
+  "pydantic-settings>=2.10.1",
+  "uvicorn[standard]>=0.35.0",
+]
 
 [dependency-groups]
 dev = [
+  "httpx>=0.28.1",
   "mypy>=1.18.2",
   "pre-commit>=4.3.0",
   "pytest>=8.4.2",
