@@ -23,7 +23,7 @@ Every endpoint must validate:
 - Tenant is active.
 - Caller tenant owns the task, object, session, or dataset being accessed.
 - Caller has the required effective permission code for the target resource.
-- Optional device restriction matches `source_device_id`.
+- Optional device restriction matches the registered device UUID in `source_device_id`, not only an external `source_device_code`.
 
 Permission codes, not fixed `can_xxx` fields, are the authorization contract.
 

@@ -141,7 +141,7 @@ For single-file flows, the API creates one task containing one object. This keep
 
 ### 8.5 Device registry
 
-Industrial terminals and robots must be first-class subjects, not only free-text `source_device_id` values.
+Industrial terminals and robots must be first-class subjects, not only free-text device labels.
 
 A device owns:
 
@@ -163,6 +163,12 @@ Device operations should support:
 - Trigger upload tasks for device local data.
 
 Device credential provisioning and rotation must be audited. Raw device credentials are write-only from the platform perspective: they may be returned once during provisioning or rotation, but no API should later reveal existing credential material.
+
+Identifier rules:
+
+- `device.id` is the internal UUID used by permissions, upload tasks, datasets, sessions, audit events, and foreign keys.
+- `device_code` is the human or factory-facing external code such as `robot-17`; it may be unique per tenant but must not replace `device.id` as the internal identifier.
+- Upload metadata may copy both `source_device_id` and `source_device_code` for traceability, but authorization must evaluate the registered device UUID.
 
 ### 8.6 Storage policies
 

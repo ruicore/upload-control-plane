@@ -14,6 +14,19 @@ Use `timestamptz` for all timestamps.
 
 Use `jsonb` for metadata.
 
+### 14.0 ID strategy
+
+The schema must support multiple API and worker instances running at the same time without a central ID allocator.
+
+Rules:
+
+- Internal entity primary keys and foreign keys use PostgreSQL `UUID`, not generic `TEXT`.
+- Application services may generate UUIDs before insert so records can be assembled transactionally before persistence.
+- UUIDv4 is acceptable for early phases; UUIDv7 may be adopted later for better index locality and time-ordered insertion without changing API response shapes.
+- Human-readable slugs, device codes, external provider IDs, storage upload IDs, object keys, and idempotency keys remain `TEXT` because they are not internal entity primary keys.
+- Do not introduce Snowflake-style numeric IDs unless a later deployment requirement justifies the operational complexity of worker-ID assignment, clock rollback handling, sequence overflow, epoch selection, and cross-environment collision avoidance.
+- API responses serialize UUID values as strings. That transport shape must not be used as a reason to weaken database column types to `TEXT`.
+
 ### 14.1 Enum types
 
 ```sql
@@ -243,7 +256,8 @@ CREATE TABLE datasets (
   object_size_bytes BIGINT NULL,
   object_version_id TEXT NULL,
 
-  source_device_id TEXT NULL,
+  source_device_id UUID NULL REFERENCES devices(id),
+  source_device_code TEXT NULL,
   validation_status validation_status NOT NULL DEFAULT 'NOT_REQUIRED',
   recovery_status recovery_status NOT NULL DEFAULT 'NORMAL',
   preview_status TEXT NOT NULL DEFAULT 'NOT_AVAILABLE',
@@ -262,6 +276,7 @@ CREATE TABLE datasets (
 CREATE INDEX idx_datasets_project_status ON datasets(project_id, status);
 CREATE INDEX idx_datasets_tenant_status ON datasets(tenant_id, status);
 CREATE INDEX idx_datasets_source_device ON datasets(tenant_id, source_device_id);
+CREATE INDEX idx_datasets_source_device_code ON datasets(tenant_id, source_device_code);
 CREATE INDEX idx_datasets_validation_status ON datasets(project_id, validation_status);
 CREATE INDEX idx_datasets_recovery_status ON datasets(project_id, recovery_status);
 CREATE UNIQUE INDEX idx_datasets_object_unique
@@ -276,6 +291,7 @@ Rules:
 - A dataset should not be overwritten in place after it becomes `READY`.
 - If versioning is needed later, add a `dataset_versions` table rather than reusing one dataset row for multiple final objects.
 - Dataset visibility and actions are derived from project-level and dataset-level permission grants.
+- `source_device_id` references the registered device UUID. `source_device_code` is optional external trace metadata and must not be used as the authorization subject.
 - `dataset_status` owns product lifecycle and exposure state.
 - `validation_status` owns validation worker progress and result.
 - `recovery_status` owns disaster-recovery reconciliation state and must remain separate from ordinary product lifecycle.
@@ -487,10 +503,10 @@ Example:
 ```text
 permission_code = dataset.upload
 resource_type = project
-resource_id = project_123
+resource_id = 6cbce9cd-7d78-48dc-b89d-f13d724f3be8
 ```
 
-means the subject may upload datasets under `project_123`.
+means the subject may upload datasets under that project UUID.
 
 ### 14.10 Upload tasks
 
@@ -503,6 +519,7 @@ CREATE TABLE upload_tasks (
   status upload_task_status NOT NULL DEFAULT 'CREATED',
   task_initiator TEXT NOT NULL,
   source_device_id UUID NULL REFERENCES devices(id),
+  source_device_code TEXT NULL,
   object_count INTEGER NOT NULL DEFAULT 0,
   completed_object_count INTEGER NOT NULL DEFAULT 0,
   failed_object_count INTEGER NOT NULL DEFAULT 0,
@@ -522,6 +539,7 @@ CREATE TABLE upload_tasks (
 
 CREATE INDEX idx_upload_tasks_project_status ON upload_tasks(project_id, status);
 CREATE INDEX idx_upload_tasks_source_device ON upload_tasks(tenant_id, source_device_id);
+CREATE INDEX idx_upload_tasks_source_device_code ON upload_tasks(tenant_id, source_device_code);
 ```
 
 ### 14.11 Upload objects
@@ -579,7 +597,8 @@ CREATE TABLE upload_sessions (
   checksum_sha256 TEXT NULL,
   checksum_mode TEXT NOT NULL DEFAULT 'CLIENT_REPORTED',
 
-  source_device_id TEXT NULL,
+  source_device_id UUID NULL REFERENCES devices(id),
+  source_device_code TEXT NULL,
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
 
   idempotency_key TEXT NULL,
@@ -618,6 +637,8 @@ CREATE INDEX idx_upload_sessions_task_id ON upload_sessions(upload_task_id);
 CREATE INDEX idx_upload_sessions_object_id ON upload_sessions(upload_object_id);
 CREATE INDEX idx_upload_sessions_expires_at ON upload_sessions(expires_at);
 CREATE INDEX idx_upload_sessions_storage_upload_id ON upload_sessions(storage_upload_id);
+CREATE INDEX idx_upload_sessions_source_device ON upload_sessions(tenant_id, source_device_id);
+CREATE INDEX idx_upload_sessions_source_device_code ON upload_sessions(tenant_id, source_device_code);
 ```
 
 ### 14.13 Upload parts

@@ -24,6 +24,20 @@ All state-changing client endpoints should accept:
 Idempotency-Key: <client-generated-key>
 ```
 
+### 10.0 ID contract
+
+Entity identifiers exposed by the API are JSON strings, but the underlying domain and database identifier type is UUID.
+
+Rules:
+
+- Public fields ending in `_id` should contain UUID-formatted strings unless the field is explicitly documented as an external provider identifier.
+- PostgreSQL columns for internal entity IDs must remain `UUID`, not generic `TEXT`.
+- Application code may generate IDs before insert so multiple API and worker instances can create records without a database round trip for ID allocation.
+- UUIDv4 is acceptable for Phase 0 and Phase 1; UUIDv7 may be adopted later for better index locality and roughly time-ordered IDs without changing API shapes.
+- Human-readable slugs, names, device codes, and storage object keys are separate `TEXT` fields and must not replace internal primary keys.
+- `Idempotency-Key` remains caller-supplied `TEXT`; it is not an entity identifier.
+- Do not introduce Snowflake-style numeric IDs unless a later deployment has a concrete ordered numeric-ID requirement and also defines worker-ID allocation, clock rollback handling, epoch, overflow behavior, and cross-environment collision rules.
+
 ### 10.1 Authentication model
 
 For portfolio implementation, support API key authentication first.
@@ -72,7 +86,7 @@ Preferred response shape:
 
 ```json
 {
-  "project_id": "project_123",
+  "project_id": "6cbce9cd-7d78-48dc-b89d-f13d724f3be8",
   "name": "Shanghai Factory Line 3",
   "effective_permissions": [
     "project.view",
@@ -242,6 +256,7 @@ Request:
   "task_name": "robot-run-2026-06-10-line-3",
   "task_initiator": "cli",
   "source_device_id": "2dc9ec4e-d1df-45bc-9ef9-49a5d09468b7",
+  "source_device_code": "robot-17",
   "storage_policy_id": "optional-policy-id",
   "objects": [
     {
@@ -296,6 +311,8 @@ Response `201 Created`:
 Rules:
 
 - Caller must have `dataset.upload` or `upload.create` on the project.
+- If supplied, `source_device_id` must identify a registered device UUID visible to the tenant.
+- `source_device_code` is optional external device metadata and must not be used as a foreign key or permission subject.
 - `objects` must contain at least one object and must not exceed the configured maximum objects per task.
 - Each object must have a positive `file_size_bytes`.
 - `part_size_bytes` is optional. If omitted, server chooses it.
