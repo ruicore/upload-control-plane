@@ -10,19 +10,32 @@ from sqlalchemy.orm import Session
 
 from upload_control_plane.api.auth import DB_SESSION, AuthenticatedActor, require_api_key
 from upload_control_plane.api.authorization import AuthorizationService
+from upload_control_plane.api.request_context import get_request_id
 from upload_control_plane.application.upload_tasks import (
+    CreatedUploadTask,
     CreateUploadObjectInput,
     CreateUploadTaskCommand,
     UploadTaskCreationService,
 )
+from upload_control_plane.config import Settings, get_settings
 from upload_control_plane.domain.errors import DomainError
 from upload_control_plane.domain.object_keys import sanitize_object_name
 from upload_control_plane.domain.parts import choose_part_size, get_part_count
 from upload_control_plane.domain.permissions import ResourceType
+from upload_control_plane.domain.storage import ObjectStorage
+from upload_control_plane.infrastructure.storage import build_s3_object_storage
 
 router = APIRouter(prefix="/v1/projects/{project_id}/upload-tasks", tags=["upload-tasks"])
 AUTH_ACTOR = Depends(require_api_key)
 IDEMPOTENCY_KEY_HEADER = Header(default=None, alias="Idempotency-Key")
+SETTINGS_DEPENDENCY = Depends(get_settings)
+
+
+def get_object_storage(settings: Settings = SETTINGS_DEPENDENCY) -> ObjectStorage:
+    return build_s3_object_storage(settings)
+
+
+OBJECT_STORAGE = Depends(get_object_storage)
 
 
 class UploadTaskObjectCreateRequest(BaseModel):
@@ -114,6 +127,8 @@ def create_upload_task(
     idempotency_key: str | None = IDEMPOTENCY_KEY_HEADER,
     actor: AuthenticatedActor = AUTH_ACTOR,
     session: Session = DB_SESSION,
+    settings: Settings = SETTINGS_DEPENDENCY,
+    storage: ObjectStorage = OBJECT_STORAGE,
 ) -> UploadTaskCreateResponse:
     authorization = AuthorizationService(session)
     authorization.require_any_permission(
@@ -123,12 +138,15 @@ def create_upload_task(
         resource_id=project_id,
     )
 
-    service = UploadTaskCreationService()
-    service.create_upload_task(
+    service = UploadTaskCreationService(session=session, storage=storage, settings=settings)
+    result = service.create_upload_task(
         CreateUploadTaskCommand(
             tenant_id=actor.tenant_id,
             project_id=project_id,
             actor=actor,
+            request_path=f"/v1/projects/{project_id}/upload-tasks",
+            request_body=request.model_dump(mode="json"),
+            request_id=get_request_id(),
             task_name=request.task_name,
             task_initiator=request.task_initiator,
             source_device_id=request.source_device_id,
@@ -139,7 +157,7 @@ def create_upload_task(
             metadata=request.metadata,
         )
     )
-    raise AssertionError("UploadTaskCreationService returned without a response")
+    return _response(result)
 
 
 def _object_input(item: UploadTaskObjectCreateRequest) -> CreateUploadObjectInput:
@@ -153,4 +171,31 @@ def _object_input(item: UploadTaskObjectCreateRequest) -> CreateUploadObjectInpu
         part_count=get_part_count(item.file_size_bytes, part_size),
         checksum_sha256=item.checksum_sha256,
         metadata=item.metadata,
+    )
+
+
+def _response(result: CreatedUploadTask) -> UploadTaskCreateResponse:
+    return UploadTaskCreateResponse(
+        task_id=result.task_id,
+        project_id=result.project_id,
+        status=result.status,
+        object_count=result.object_count,
+        total_size_bytes=result.total_size_bytes,
+        objects=[
+            UploadTaskCreatedObjectResponse(
+                object_id=item.object_id,
+                dataset_id=item.dataset_id,
+                session_id=item.session_id,
+                status=item.status,
+                object_name=item.object_name,
+                bucket=item.bucket,
+                object_key=item.object_key,
+                file_size_bytes=item.file_size_bytes,
+                part_size_bytes=item.part_size_bytes,
+                part_count=item.part_count,
+                expires_at=item.expires_at,
+            )
+            for item in result.objects
+        ],
+        created_at=result.created_at,
     )

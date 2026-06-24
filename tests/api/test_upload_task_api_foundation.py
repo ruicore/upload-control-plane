@@ -15,9 +15,34 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from upload_control_plane.api.auth import get_db_session
 from upload_control_plane.api.request_context import REQUEST_ID_HEADER
+from upload_control_plane.api.upload_tasks import get_object_storage
 from upload_control_plane.config import get_settings
 from upload_control_plane.domain.parts import DEFAULT_PART_SIZE, MIN_PART_SIZE
-from upload_control_plane.infrastructure.db.models import PermissionGrant, Project, UploadTask
+from upload_control_plane.domain.storage import (
+    AbortMultipartUploadRequest,
+    CompletedObject,
+    CompleteMultipartUploadRequest,
+    CreateMultipartUploadRequest,
+    CreateMultipartUploadResult,
+    HeadObjectRequest,
+    HeadObjectResult,
+    ListedPartsPage,
+    ListPartsRequest,
+    PresignedPartUrl,
+    PresignUploadPartRequest,
+    StorageCapabilities,
+)
+from upload_control_plane.infrastructure.db.models import (
+    AuditEvent,
+    Dataset,
+    IdempotencyRecord,
+    PermissionGrant,
+    Project,
+    UploadEvent,
+    UploadObject,
+    UploadSession,
+    UploadTask,
+)
 from upload_control_plane.infrastructure.db.seed import (
     DEV_API_KEY_VALUE,
     build_dev_seed_result,
@@ -90,34 +115,184 @@ def test_upload_task_create_rejects_actor_without_upload_permission() -> None:
         _ = seed
 
 
-def test_upload_task_create_valid_contract_reaches_stable_not_implemented_entrypoint() -> None:
+def test_upload_task_create_single_file_transactionally_creates_records() -> None:
     session_factory = _db_session_factory_or_skip()
     seed = build_dev_seed_result()
+    storage = FakeObjectStorage()
+    idempotency_key = "idem-upload-single"
 
     with _session_scope(session_factory) as session:
         seed_dev_data(session, get_settings())
         before_count = session.scalar(select(func.count()).select_from(UploadTask))
 
-    client = _client(session_factory)
-    response = client.post(
-        f"/v1/projects/{seed.project_id}/upload-tasks",
-        headers={**_auth_headers("req-upload-501"), "Idempotency-Key": "idem-upload-501"},
-        json=_valid_payload(),
-    )
+    try:
+        client = _client(session_factory, storage=storage)
+        response = client.post(
+            f"/v1/projects/{seed.project_id}/upload-tasks",
+            headers={**_auth_headers("req-upload-create"), "Idempotency-Key": idempotency_key},
+            json=_valid_payload(),
+        )
 
-    with _session_scope(session_factory) as session:
-        after_count = session.scalar(select(func.count()).select_from(UploadTask))
+        assert response.status_code == 201
+        body = response.json()
+        assert body["project_id"] == str(seed.project_id)
+        assert body["status"] == "PENDING"
+        assert body["object_count"] == 1
+        assert body["total_size_bytes"] == DEFAULT_PART_SIZE
+        assert len(body["objects"]) == 1
+        created = body["objects"][0]
+        assert created["status"] == "PENDING"
+        assert created["object_name"] == "front_camera.hdf5"
+        assert created["bucket"] == get_settings().s3_bucket
+        assert "/front_camera.hdf5" in created["object_key"]
+        assert not created["object_key"].startswith("front_camera")
+        assert storage.create_calls == [
+            {
+                "bucket": created["bucket"],
+                "object_key": created["object_key"],
+                "content_type": "application/x-hdf5",
+            }
+        ]
 
-    assert response.status_code == 501
-    assert response.json() == {
-        "error": {
-            "code": "upload_task.not_implemented",
-            "message": "Upload task transactional creation is not implemented yet.",
-            "details": {},
-            "request_id": "req-upload-501",
+        with _session_scope(session_factory) as session:
+            after_count = session.scalar(select(func.count()).select_from(UploadTask))
+            task = session.get(UploadTask, uuid.UUID(body["task_id"]))
+            upload_object = session.get(UploadObject, uuid.UUID(created["object_id"]))
+            dataset = session.get(Dataset, uuid.UUID(created["dataset_id"]))
+            upload_session = session.get(UploadSession, uuid.UUID(created["session_id"]))
+            events = session.scalars(
+                select(UploadEvent).where(UploadEvent.upload_task_id == uuid.UUID(body["task_id"]))
+            ).all()
+            audits = session.scalars(
+                select(AuditEvent).where(AuditEvent.resource_id == body["task_id"])
+            ).all()
+
+        assert before_count is not None
+        assert after_count == before_count + 1
+        assert task is not None
+        assert upload_object is not None
+        assert dataset is not None
+        assert upload_session is not None
+        assert upload_session.storage_upload_id == "fake-upload-1"
+        assert upload_session.status == "INITIATED"
+        assert upload_object.upload_session_id == upload_session.id
+        assert dataset.object_key == created["object_key"]
+        assert {event.event_type for event in events} == {
+            "upload_task.created",
+            "upload_session.storage_initiated",
         }
-    }
-    assert after_count == before_count
+        assert [audit.action for audit in audits] == ["upload_task.create"]
+    finally:
+        _delete_upload_artifacts(session_factory, idempotency_key)
+
+
+def test_upload_task_create_multi_file_creates_one_object_and_session_per_item() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = FakeObjectStorage()
+    idempotency_key = "idem-upload-multi"
+    payload = _valid_payload(
+        objects=[
+            {
+                "dataset_name": "front-camera",
+                "object_name": "front_camera.hdf5",
+                "file_size_bytes": DEFAULT_PART_SIZE,
+            },
+            {
+                "dataset_name": "rear-camera",
+                "object_name": "rear_camera.hdf5",
+                "file_size_bytes": DEFAULT_PART_SIZE,
+            },
+        ]
+    )
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+
+    try:
+        client = _client(session_factory, storage=storage)
+        response = client.post(
+            f"/v1/projects/{seed.project_id}/upload-tasks",
+            headers={**_auth_headers("req-upload-multi"), "Idempotency-Key": idempotency_key},
+            json=payload,
+        )
+
+        assert response.status_code == 201
+        body = response.json()
+        assert body["object_count"] == 2
+        assert len(body["objects"]) == 2
+        assert len({item["object_id"] for item in body["objects"]}) == 2
+        assert len({item["session_id"] for item in body["objects"]}) == 2
+        assert len(storage.create_calls) == 2
+    finally:
+        _delete_upload_artifacts(session_factory, idempotency_key)
+
+
+def test_upload_task_create_idempotent_retry_returns_same_response_without_storage_call() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = FakeObjectStorage()
+    idempotency_key = "idem-upload-retry"
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+
+    try:
+        client = _client(session_factory, storage=storage)
+        first = client.post(
+            f"/v1/projects/{seed.project_id}/upload-tasks",
+            headers={**_auth_headers("req-upload-retry-1"), "Idempotency-Key": idempotency_key},
+            json=_valid_payload(),
+        )
+        second = client.post(
+            f"/v1/projects/{seed.project_id}/upload-tasks",
+            headers={**_auth_headers("req-upload-retry-2"), "Idempotency-Key": idempotency_key},
+            json=_valid_payload(),
+        )
+
+        assert first.status_code == 201
+        assert second.status_code == 201
+        first_body = first.json()
+        second_body = second.json()
+        assert second_body == first_body
+        assert len(storage.create_calls) == 1
+    finally:
+        _delete_upload_artifacts(session_factory, idempotency_key)
+
+
+def test_upload_task_create_rejects_idempotency_key_reused_with_different_request() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = FakeObjectStorage()
+    idempotency_key = "idem-upload-conflict"
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+
+    try:
+        client = _client(session_factory, storage=storage)
+        first = client.post(
+            f"/v1/projects/{seed.project_id}/upload-tasks",
+            headers={**_auth_headers("req-upload-conflict-1"), "Idempotency-Key": idempotency_key},
+            json=_valid_payload(),
+        )
+        second = client.post(
+            f"/v1/projects/{seed.project_id}/upload-tasks",
+            headers={**_auth_headers("req-upload-conflict-2"), "Idempotency-Key": idempotency_key},
+            json=_valid_payload(
+                objects=[
+                    {
+                        "dataset_name": "rear",
+                        "object_name": "rear.hdf5",
+                        "file_size_bytes": DEFAULT_PART_SIZE,
+                    }
+                ]
+            ),
+        )
+
+        assert first.status_code == 201
+        assert second.status_code == 409
+        assert second.json()["error"]["code"] == "idempotency.key_reused_with_different_request"
+        assert len(storage.create_calls) == 1
+    finally:
+        _delete_upload_artifacts(session_factory, idempotency_key)
 
 
 @pytest.mark.parametrize(
@@ -151,6 +326,27 @@ def test_upload_task_create_rejects_invalid_request_shape(
     assert body["error"]["code"] == "request.validation_failed"
     assert body["error"]["request_id"] == "req-upload-validation"
     assert expected_message in str(body["error"]["details"]["errors"])
+
+
+def test_upload_task_create_validation_happens_before_storage() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = FakeObjectStorage()
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+
+    client = _client(session_factory, storage=storage)
+    response = client.post(
+        f"/v1/projects/{seed.project_id}/upload-tasks",
+        headers={
+            **_auth_headers("req-upload-invalid-no-storage"),
+            "Idempotency-Key": "idem-invalid-no-storage",
+        },
+        json=_invalid_payload("zero_file_size"),
+    )
+
+    assert response.status_code == 422
+    assert storage.create_calls == []
 
 
 def _invalid_payload(case: str) -> dict[str, object]:
@@ -253,7 +449,11 @@ def _db_session_factory_or_skip() -> sessionmaker[Session]:
     return build_session_factory(engine)
 
 
-def _client(session_factory: sessionmaker[Session]) -> TestClient:
+def _client(
+    session_factory: sessionmaker[Session],
+    *,
+    storage: FakeObjectStorage | None = None,
+) -> TestClient:
     app = create_app()
 
     def override_session() -> Iterator[Session]:
@@ -261,6 +461,8 @@ def _client(session_factory: sessionmaker[Session]) -> TestClient:
             yield session
 
     app.dependency_overrides[get_db_session] = override_session
+    if storage is not None:
+        app.dependency_overrides[get_object_storage] = lambda: storage
     return TestClient(app)
 
 
@@ -337,3 +539,77 @@ def _delete_test_projects(session_factory: sessionmaker[Session], *project_ids: 
 def _delete_test_grants(session_factory: sessionmaker[Session], *grant_ids: uuid.UUID) -> None:
     with _session_scope(session_factory) as session:
         session.execute(delete(PermissionGrant).where(PermissionGrant.id.in_(grant_ids)))
+
+
+def _delete_upload_artifacts(session_factory: sessionmaker[Session], idempotency_key: str) -> None:
+    with _session_scope(session_factory) as session:
+        task_ids = list(
+            session.scalars(
+                select(UploadTask.id).where(UploadTask.idempotency_key == idempotency_key)
+            )
+        )
+        if not task_ids:
+            session.execute(
+                delete(IdempotencyRecord).where(IdempotencyRecord.key == idempotency_key)
+            )
+            return
+        object_ids = list(
+            session.scalars(
+                select(UploadObject.id).where(UploadObject.upload_task_id.in_(task_ids))
+            )
+        )
+        dataset_ids = list(
+            session.scalars(
+                select(UploadObject.dataset_id).where(UploadObject.upload_task_id.in_(task_ids))
+            )
+        )
+        session.execute(delete(UploadEvent).where(UploadEvent.upload_task_id.in_(task_ids)))
+        session.execute(
+            delete(AuditEvent)
+            .where(AuditEvent.resource_type == "upload_task")
+            .where(AuditEvent.resource_id.in_(str(task_id) for task_id in task_ids))
+        )
+        session.execute(delete(UploadSession).where(UploadSession.upload_task_id.in_(task_ids)))
+        if object_ids:
+            session.execute(delete(UploadObject).where(UploadObject.id.in_(object_ids)))
+        session.execute(delete(UploadTask).where(UploadTask.id.in_(task_ids)))
+        if dataset_ids:
+            session.execute(delete(Dataset).where(Dataset.id.in_(dataset_ids)))
+        session.execute(delete(IdempotencyRecord).where(IdempotencyRecord.key == idempotency_key))
+
+
+class FakeObjectStorage:
+    def __init__(self) -> None:
+        self.create_calls: list[dict[str, str | None]] = []
+
+    @property
+    def capabilities(self) -> StorageCapabilities:
+        return StorageCapabilities()
+
+    def create_multipart_upload(
+        self,
+        request: CreateMultipartUploadRequest,
+    ) -> CreateMultipartUploadResult:
+        self.create_calls.append(
+            {
+                "bucket": request.bucket,
+                "object_key": request.object_key,
+                "content_type": request.content_type,
+            }
+        )
+        return CreateMultipartUploadResult(upload_id=f"fake-upload-{len(self.create_calls)}")
+
+    def presign_upload_part(self, request: PresignUploadPartRequest) -> PresignedPartUrl:
+        raise NotImplementedError
+
+    def list_parts(self, request: ListPartsRequest) -> ListedPartsPage:
+        raise NotImplementedError
+
+    def complete_multipart_upload(self, request: CompleteMultipartUploadRequest) -> CompletedObject:
+        raise NotImplementedError
+
+    def abort_multipart_upload(self, request: AbortMultipartUploadRequest) -> None:
+        raise NotImplementedError
+
+    def head_object(self, request: HeadObjectRequest) -> HeadObjectResult:
+        raise NotImplementedError
