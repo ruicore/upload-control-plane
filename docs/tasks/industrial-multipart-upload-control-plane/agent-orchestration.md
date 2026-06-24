@@ -286,6 +286,14 @@ Implementation Agent
 - 如果冲突需要语义设计决策，Merge Agent 必须停止并标记 `blocked`。
 - 如果冲突暴露实现缺陷，Master agent 应派发 Repair Agent，而不是让 Merge Agent 顺手修。
 
+Validation 后自动 repair 授权：
+
+- Validation Agent 给出 `partial`、`blocked` 或 `rejected` 后，如果失败点不违反已定义产品功能、PRD 硬约束和当前 task 范围，Master agent 可以直接派发 Repair Agent，不需要每次等待额外人工确认。
+- 自动 repair 只允许处理以下问题：缺少环境工具或本地依赖、端口冲突或本地配置不匹配、格式/类型/测试门禁失败、可由局部改动修复的明显窄 bug、handoff 缺漏或验证证据缺漏。
+- 自动 repair 禁止改变产品功能、放宽 PRD 硬约束、绕过授权或 storage-authoritative complete、增加任何文件字节代理路径、扩大原 task 范围、替代尚未确认的设计决策。
+- Repair Agent 必须基于最近的 implementation/validation handoff 说明修复原因、变更边界和回归命令，完成后写 recovery handoff。
+- Repair 完成后必须再次进入 Validation；在新的 Validation handoff 被判定为 `accepted` 前，不得解锁下游 task、不得进入 Master review，也不得交给 Merge Agent。
+
 ## 9. 验收和恢复策略
 
 验收层级：
