@@ -1,37 +1,83 @@
 # Upload Control Plane
 
-`upload-control-plane` is the foundation for a production-oriented resumable multipart upload control plane for AI, robotics, and industrial data ingestion.
+Production-oriented resumable multipart upload control plane for AI, robotics, and industrial data ingestion, using FastAPI, PostgreSQL, and MinIO.
 
-The long-term architecture separates the control plane from the data plane. The future API service will manage authorization, upload lifecycle state, presigned URL issuance, completion, abort, cleanup, and observability. File bytes are intended to move directly from clients to S3-compatible object storage such as MinIO, so backend bandwidth and memory remain bounded.
+This repository is in the bootstrap phase. The product and engineering design is intentionally more mature than the current implementation: upload APIs, database models, object-storage integration, workers, and client upload flows are not complete yet.
+
+## Design Status
+
+The canonical PRD is split into a Codex-readable document set:
+
+- [Industrial Multipart Upload Control Plane PRD](docs/prd/industrial-multipart-upload-control-plane/README.md)
+- [Compatibility entrypoint for older links](docs/industrial_multipart_upload_control_plane_design.md)
+
+The PRD defines the target architecture, API contracts, storage adapter boundaries, database schema, security controls, observability plan, failure modes, and phased implementation plan.
+
+## Architecture Direction
+
+The system is designed around a strict control-plane / data-plane split:
+
+```text
+Clients and devices
+    | control-plane calls only
+    v
+Upload Control Plane
+    | creates sessions and signs scoped storage operations
+    v
+MinIO / S3-compatible storage
+
+Clients and devices
+    | direct PUT part bytes through presigned URLs
+    v
+MinIO / S3-compatible storage
+```
+
+The backend and optional EMQX/MQTT adapter must never receive large file bodies. They manage authorization, upload lifecycle state, presigned URL issuance, pause/resume, completion, abort, cleanup, audit, and observability. File bytes move directly from browsers, CLI tools, or industrial devices to object storage.
+
+## Planned Scope
+
+The PRD currently covers:
+
+- S3-compatible multipart upload with client-side slicing and retry.
+- Resumability after client crash, robot power loss, network outage, or URL expiry.
+- Pause and resume as control-plane scheduling states.
+- PostgreSQL-backed upload, dataset, device, permission, audit, outbox, and lifecycle metadata.
+- MinIO-first storage through an adapter boundary.
+- Project, dataset, device, upload task, storage policy, and resource-scoped permission models.
+- Optional EMQX/MQTT control-plane integration for device-triggered uploads.
+- Browser direct-upload CORS and signed-header requirements.
+- Storage-native checksums, KMS/encryption, object lock, legal hold, quota, backpressure, backup/restore, and recovery reconciliation.
+- Structured logs, Prometheus metrics, OpenTelemetry hooks, SLOs, alerts, and operator runbooks.
 
 ## Repository Status
 
-This repository is currently in the bootstrap phase.
+Implemented today:
 
-It contains only project structure, development tooling, quality gates, and documentation scaffolding. It does not yet implement upload APIs, database models, object-storage integration, upload workflows, workers, or client functionality.
+- Project structure and packaging.
+- Development tooling and quality gates.
+- Documentation and PRD scaffolding.
 
-## Architecture Summary
+Not implemented yet:
 
-The planned system will eventually support:
+- Upload API endpoints.
+- PostgreSQL schema and migrations for the upload domain.
+- MinIO/S3 multipart adapter.
+- Cleanup, validation, outbox, and lifecycle workers.
+- `uploadctl` CLI uploader.
+- MQTT adapter.
 
-- Multipart and resumable uploads for large industrial datasets.
-- Backend-controlled upload session lifecycle.
-- Short-lived presigned URL workflows.
-- Client-side file slicing and retry behavior.
-- PostgreSQL-backed metadata and audit history.
-- MinIO or S3-compatible object storage through an adapter boundary.
-- Clear operational signals through logging, metrics, and tracing.
-
-These capabilities are intentionally not implemented in the bootstrap repository.
+This project is production-oriented, but it is not production-proven.
 
 ## Development Principles
 
-- Keep file bytes out of the backend control plane.
-- Keep domain logic independent from web, database, and storage frameworks.
-- Prefer explicit state transitions and retry-safe behavior.
-- Treat object storage as authoritative for uploaded parts.
-- Preserve strict typing and automated quality gates from the start.
-- Add tests with future behavior changes.
+- Keep file bytes out of backend control-plane services.
+- Do not give clients MinIO/S3 credentials.
+- Treat object storage as authoritative for uploaded parts before completion.
+- Keep domain logic independent from FastAPI, SQLAlchemy, boto3, and broker clients.
+- Make state transitions explicit and test-covered.
+- Make every state-changing API retry-safe.
+- Redact secrets and presigned URL query strings from logs, traces, audit events, and outbox payloads.
+- Add focused tests with every behavior change.
 
 ## Local Development
 
