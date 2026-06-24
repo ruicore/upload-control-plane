@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from fastapi import Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -38,7 +39,7 @@ def build_error_payload(
         "error": {
             "code": code,
             "message": message,
-            "details": dict(details or {}),
+            "details": jsonable_encoder(dict(details or {})),
             "request_id": request_id or get_request_id(),
         }
     }
