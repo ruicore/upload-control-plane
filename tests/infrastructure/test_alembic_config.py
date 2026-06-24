@@ -19,8 +19,13 @@ def test_alembic_config_points_at_migrations_directory() -> None:
 def test_alembic_has_persistence_base_head_revision() -> None:
     script = ScriptDirectory.from_config(build_alembic_config(Settings()))
 
-    assert script.get_current_head() == "20260624_0001"
+    assert script.get_current_head() == "20260624_0002"
 
 
-def test_migration_target_metadata_starts_without_business_tables() -> None:
-    assert Base.metadata.tables == {}
+def test_migration_target_metadata_has_core_schema_tables() -> None:
+    assert set(Base.metadata.tables) == {
+        "api_keys",
+        "projects",
+        "storage_policies",
+        "tenants",
+    }
