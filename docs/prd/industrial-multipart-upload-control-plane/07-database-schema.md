@@ -38,24 +38,18 @@ CREATE TYPE upload_part_status AS ENUM (
   'FAILED'
 );
 
-CREATE TYPE upload_batch_status AS ENUM (
-  'OPEN',
-  'COMPLETING',
-  'COMPLETED',
-  'ABORTED',
-  'FAILED'
-);
-
 CREATE TYPE dataset_status AS ENUM (
   'CREATED',
   'UPLOAD_PENDING',
   'UPLOADING',
   'PAUSED',
   'PROCESSING',
+  'QUARANTINED',
   'READY',
-  'VALIDATION_FAILED',
+  'REJECTED',
   'ARCHIVED',
-  'DELETED'
+  'DELETED',
+  'PURGED'
 );
 
 CREATE TYPE upload_task_status AS ENUM (
@@ -94,6 +88,15 @@ CREATE TYPE validation_status AS ENUM (
   'PASSED',
   'FAILED',
   'SKIPPED'
+);
+
+CREATE TYPE recovery_status AS ENUM (
+  'NORMAL',
+  'RECOVERY_PENDING',
+  'RECOVERY_VERIFIED',
+  'RECOVERY_MISSING_OBJECT',
+  'RECOVERY_METADATA_ONLY',
+  'RECOVERY_OBJECT_ONLY'
 );
 
 CREATE TYPE outbox_status AS ENUM (
@@ -168,7 +171,7 @@ Storage policy fields are intentionally broader than the first local MinIO imple
 - `replication_policy_ref` points to an operator-managed storage replication policy.
 - `cors_policy_ref` points to an operator-managed browser direct-upload CORS policy.
 
-The first implementation may leave these optional fields unused, but migrations and service code must not assume that encryption, object lock, retention, CORS, and replication are purely application-local concepts.
+The initial product stages may leave these optional fields unused, but migrations and service code must not assume that encryption, object lock, retention, CORS, and replication are purely application-local concepts.
 
 ### 14.4 API keys
 
@@ -242,6 +245,7 @@ CREATE TABLE datasets (
 
   source_device_id TEXT NULL,
   validation_status validation_status NOT NULL DEFAULT 'NOT_REQUIRED',
+  recovery_status recovery_status NOT NULL DEFAULT 'NORMAL',
   preview_status TEXT NOT NULL DEFAULT 'NOT_AVAILABLE',
   preview_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -259,6 +263,7 @@ CREATE INDEX idx_datasets_project_status ON datasets(project_id, status);
 CREATE INDEX idx_datasets_tenant_status ON datasets(tenant_id, status);
 CREATE INDEX idx_datasets_source_device ON datasets(tenant_id, source_device_id);
 CREATE INDEX idx_datasets_validation_status ON datasets(project_id, validation_status);
+CREATE INDEX idx_datasets_recovery_status ON datasets(project_id, recovery_status);
 CREATE UNIQUE INDEX idx_datasets_object_unique
   ON datasets(bucket_name, object_key)
   WHERE object_key IS NOT NULL;
@@ -267,10 +272,13 @@ CREATE UNIQUE INDEX idx_datasets_object_unique
 Rules:
 
 - A dataset is the business data asset.
-- In the first implementation, one dataset corresponds to one final object.
+- In the initial product model, one dataset corresponds to one final object.
 - A dataset should not be overwritten in place after it becomes `READY`.
 - If versioning is needed later, add a `dataset_versions` table rather than reusing one dataset row for multiple final objects.
 - Dataset visibility and actions are derived from project-level and dataset-level permission grants.
+- `dataset_status` owns product lifecycle and exposure state.
+- `validation_status` owns validation worker progress and result.
+- `recovery_status` owns disaster-recovery reconciliation state and must remain separate from ordinary product lifecycle.
 
 ### 14.7 Tags
 
@@ -422,7 +430,7 @@ Permission inheritance rules:
 - Tenant-level grants may apply to all projects and datasets in the tenant.
 - Project-level grants may apply to datasets, upload tasks, upload sessions, tags, and devices under that project.
 - Dataset-level grants apply only to the specific dataset.
-- Device-level grants apply only to device-specific operations such as credential view/rotation.
+- Device-level grants apply only to device-specific operations such as credential rotation and revocation.
 - Storage-policy-level grants apply only to storage policy view/manage operations.
 - Upload-task-level and upload-session-level grants are exceptional and should be avoided unless a narrow operational override is required.
 - `DENY` wins over `ALLOW` when both apply at the same or inherited scope.
@@ -465,8 +473,8 @@ device.view
 device.create
 device.update
 device.disable
-device.credentials.view
 device.credentials.rotate
+device.credentials.revoke
 
 storage_policy.view
 storage_policy.manage
@@ -484,32 +492,7 @@ resource_id = project_123
 
 means the subject may upload datasets under `project_123`.
 
-### 14.10 Upload batches
-
-```sql
-CREATE TABLE upload_batches (
-  id UUID PRIMARY KEY,
-  tenant_id UUID NOT NULL REFERENCES tenants(id),
-  project_id UUID NULL REFERENCES projects(id),
-  name TEXT NOT NULL,
-  source_device_id TEXT NULL,
-  status upload_batch_status NOT NULL DEFAULT 'OPEN',
-  expected_file_count INTEGER NULL,
-  expected_total_size_bytes BIGINT NULL,
-  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-  idempotency_key TEXT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  completed_at TIMESTAMPTZ NULL,
-  failed_at TIMESTAMPTZ NULL,
-  UNIQUE (tenant_id, idempotency_key)
-);
-
-CREATE INDEX idx_upload_batches_tenant_status ON upload_batches(tenant_id, status);
-CREATE INDEX idx_upload_batches_project_id ON upload_batches(project_id);
-```
-
-### 14.11 Upload tasks
+### 14.10 Upload tasks
 
 ```sql
 CREATE TABLE upload_tasks (
@@ -541,7 +524,7 @@ CREATE INDEX idx_upload_tasks_project_status ON upload_tasks(project_id, status)
 CREATE INDEX idx_upload_tasks_source_device ON upload_tasks(tenant_id, source_device_id);
 ```
 
-### 14.12 Upload objects
+### 14.11 Upload objects
 
 ```sql
 CREATE TABLE upload_objects (
@@ -569,7 +552,7 @@ CREATE INDEX idx_upload_objects_task_status ON upload_objects(upload_task_id, st
 CREATE INDEX idx_upload_objects_dataset_id ON upload_objects(dataset_id);
 ```
 
-### 14.13 Upload sessions
+### 14.12 Upload sessions
 
 ```sql
 CREATE TABLE upload_sessions (
@@ -577,7 +560,6 @@ CREATE TABLE upload_sessions (
   tenant_id UUID NOT NULL REFERENCES tenants(id),
   project_id UUID NULL REFERENCES projects(id),
   dataset_id UUID NULL REFERENCES datasets(id),
-  batch_id UUID NULL REFERENCES upload_batches(id),
   upload_task_id UUID NULL REFERENCES upload_tasks(id),
   upload_object_id UUID NULL REFERENCES upload_objects(id),
 
@@ -634,12 +616,11 @@ CREATE INDEX idx_upload_sessions_project_id ON upload_sessions(project_id);
 CREATE INDEX idx_upload_sessions_dataset_id ON upload_sessions(dataset_id);
 CREATE INDEX idx_upload_sessions_task_id ON upload_sessions(upload_task_id);
 CREATE INDEX idx_upload_sessions_object_id ON upload_sessions(upload_object_id);
-CREATE INDEX idx_upload_sessions_batch_id ON upload_sessions(batch_id);
 CREATE INDEX idx_upload_sessions_expires_at ON upload_sessions(expires_at);
 CREATE INDEX idx_upload_sessions_storage_upload_id ON upload_sessions(storage_upload_id);
 ```
 
-### 14.14 Upload parts
+### 14.13 Upload parts
 
 ```sql
 CREATE TABLE upload_parts (
@@ -673,7 +654,7 @@ CREATE TABLE upload_parts (
 CREATE INDEX idx_upload_parts_session_status ON upload_parts(session_id, status);
 ```
 
-### 14.15 Dataset validation results
+### 14.14 Dataset validation results
 
 ```sql
 CREATE TABLE dataset_validation_results (
@@ -695,7 +676,7 @@ CREATE INDEX idx_dataset_validation_dataset ON dataset_validation_results(datase
 CREATE INDEX idx_dataset_validation_status ON dataset_validation_results(project_id, status);
 ```
 
-### 14.16 Upload events
+### 14.15 Upload events
 
 ```sql
 CREATE TABLE upload_events (
@@ -704,7 +685,6 @@ CREATE TABLE upload_events (
   project_id UUID NULL REFERENCES projects(id) ON DELETE CASCADE,
   dataset_id UUID NULL REFERENCES datasets(id) ON DELETE CASCADE,
   session_id UUID NULL REFERENCES upload_sessions(id) ON DELETE CASCADE,
-  batch_id UUID NULL REFERENCES upload_batches(id) ON DELETE CASCADE,
   event_type TEXT NOT NULL,
   actor_type TEXT NOT NULL DEFAULT 'system',
   actor_id TEXT NULL,
@@ -716,13 +696,12 @@ CREATE TABLE upload_events (
 CREATE INDEX idx_upload_events_project_id ON upload_events(project_id, created_at);
 CREATE INDEX idx_upload_events_dataset_id ON upload_events(dataset_id, created_at);
 CREATE INDEX idx_upload_events_session_id ON upload_events(session_id, created_at);
-CREATE INDEX idx_upload_events_batch_id ON upload_events(batch_id, created_at);
 CREATE INDEX idx_upload_events_tenant_type ON upload_events(tenant_id, event_type, created_at);
 ```
 
 Upload events are specific to upload lifecycle details. Use unified audit events for broader governance actions.
 
-### 14.17 Unified audit events
+### 14.16 Unified audit events
 
 ```sql
 CREATE TABLE audit_events (
@@ -750,7 +729,7 @@ CREATE INDEX idx_audit_events_actor ON audit_events(tenant_id, actor_type, actor
 CREATE INDEX idx_audit_events_action ON audit_events(tenant_id, action, created_at);
 ```
 
-### 14.18 Outbox events
+### 14.17 Outbox events
 
 ```sql
 CREATE TABLE outbox_events (
@@ -778,7 +757,7 @@ CREATE INDEX idx_outbox_events_aggregate
 
 Outbox events must be inserted in the same transaction as the domain change they describe.
 
-### 14.19 Idempotency records
+### 14.18 Idempotency records
 
 ```sql
 CREATE TABLE idempotency_records (

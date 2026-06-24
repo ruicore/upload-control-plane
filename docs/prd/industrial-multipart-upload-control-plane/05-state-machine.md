@@ -40,7 +40,7 @@ FAILED
 
 | From | To | Trigger |
 |---|---|---|
-| none | `INITIATING` | `POST /v1/uploads` accepted |
+| none | `INITIATING` | UploadTask creation accepted for an UploadObject |
 | `INITIATING` | `INITIATED` | Storage create multipart upload succeeded and DB updated |
 | `INITIATING` | `FAILED` | Storage create failed permanently |
 | `INITIATED` | `UPLOADING` | Presign issued or part acknowledged |
@@ -94,7 +94,7 @@ Acceptable implementations:
 - PostgreSQL advisory lock keyed by session UUID.
 - Optimistic version field with retry, if carefully implemented.
 
-Recommended first implementation:
+Recommended initial implementation:
 
 - Use `SELECT ... FOR UPDATE` inside transaction for state transition checks.
 - Set status to `PAUSED`, `UPLOADING`, `COMPLETING`, or `ABORTING` only after validating the current state while holding the lock.

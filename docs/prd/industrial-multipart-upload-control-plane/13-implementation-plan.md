@@ -2,22 +2,24 @@
 
 Previous: [Observability, Testing, and Failure Modes](12-observability-testing-failure-modes.md) | Index: [README](README.md) | Next: [References and Completion Criteria](14-references-and-done.md)
 
-## 30. Phased Implementation Plan
+## 30. Industrial Product Implementation Plan
 
-This section is written for Codex. Each phase should result in runnable code and tests.
+This section is written for Codex and engineering execution. The product target is an industrial upload control plane, not a minimal demo. The implementation must still be split into reviewable, runnable stages so each stage has clear ownership, tests, and rollback shape.
 
-### Phase 0 - Repository scaffold
+Every stage should result in code that runs locally through Docker Compose or unit tests. Optional components are delayed only when their dependencies are not ready, not because they are out of product scope.
+
+### Phase 0 - Foundation Runtime
 
 Deliverables:
 
-- `pyproject.toml`.
-- `src/upload_control_plane` package.
-- `tests` structure.
-- `docker-compose.yml` with PostgreSQL and MinIO.
-- `Makefile`.
+- Python 3.13 project dependencies for FastAPI, Pydantic Settings, pytest, ruff, and mypy.
 - Basic FastAPI app with `/healthz`.
-- Basic config loading.
-- Ruff and pytest configured.
+- Configuration loading.
+- `docker-compose.yml` with `api`, `worker`, `postgres`, `minio`, and `minio-init`.
+- MinIO S3 API exposed at `http://localhost:9000`.
+- MinIO Console exposed at `http://localhost:9001`.
+- PostgreSQL exposed at `localhost:15432` for local inspection.
+- `Makefile` or equivalent scripts for dev-up, migrate, seed, test, and dev-down.
 
 Acceptance criteria:
 
@@ -27,66 +29,113 @@ make test
 curl http://localhost:8000/healthz
 ```
 
-must succeed.
+must succeed, and a local browser can open the MinIO Console at `http://localhost:9001`.
 
-### Phase 1 - Domain model and database migrations
+### Phase 1 - Domain Kernel
 
 Deliverables:
 
-- Domain enums and state transition validation.
-- Part size and part range functions.
-- Dataset lifecycle transition rules.
-- Upload task aggregate status rules.
-- Dataset exposure states including quarantine, validation pending, ready, rejected, and recovery states.
-- SQLAlchemy models.
-- Alembic migration for tenants, storage policies, api keys, projects, datasets, tags, devices, permission grants, upload tasks, upload objects, batches, sessions, parts, validation results, upload events, audit events, outbox events, and idempotency.
-- Storage policy fields for encryption, KMS key reference, object lock, legal hold, replication policy, CORS policy, quotas, and checksum mode.
-- Seed script for dev tenant and API key.
+- Part size selection and part range functions.
+- Upload session state machine.
+- Upload task and upload object aggregate status rules.
+- Dataset lifecycle state rules using `dataset_status`.
+- Dataset validation state rules using `validation_status`.
+- Dataset recovery state rules using `recovery_status`.
+- Object key sanitizer.
+- Request fingerprint generation.
+- Permission-code evaluation model, including inherited grants and deny-over-allow.
 
 Acceptance criteria:
 
-- Unit tests for part math and state transitions pass.
-- DB migration applies cleanly from empty database.
-- Seed script produces one usable dev API key, one storage policy, one project, one dataset, one device, and permission grants for upload testing.
+- Unit tests cover 5 MiB, 64 MiB, 5 GiB, and 10,000-part boundaries.
+- Unit tests reject invalid upload session transitions.
+- Unit tests prove upload `COMPLETED` is not equivalent to dataset `READY`.
+- Unit tests prove `QUARANTINED`, `REJECTED`, and non-`NORMAL` recovery states block exposure.
+- Unit tests prove effective permission calculation is centralized and deterministic.
 
-### Phase 2 - MinIO/S3 storage adapter
+### Phase 2 - Persistence Foundation
+
+Deliverables:
+
+- SQLAlchemy 2.x sync models.
+- Alembic migration for tenants, storage policies, API keys, projects, datasets, tags, devices, permission grants, upload tasks, upload objects, upload sessions, upload parts, validation results, upload events, audit events, outbox events, and idempotency records.
+- No `upload_batches` table.
+- No `batch_id` ownership path on upload sessions or upload events.
+- Seed script for dev tenant, API key, storage policy, project, dataset, device, and permission grants.
+
+Acceptance criteria:
+
+- Migration applies cleanly from an empty PostgreSQL database.
+- Seed script produces one usable dev API key.
+- Seeded actor can see a project through `project.view` and can upload through `dataset.upload` or `upload.create`.
+- Schema contains separate `dataset_status`, `validation_status`, and `recovery_status` concepts.
+
+### Phase 3 - Authentication and Authorization
+
+Deliverables:
+
+- API key authentication dependency.
+- Hashed API key storage and verification.
+- Tenant active-status checks.
+- Project-scoped permission filtering.
+- `effective_permissions` response helper.
+- Stable error response format.
+- Request ID middleware.
+
+Acceptance criteria:
+
+- Project list only returns projects where the caller has `project.view`.
+- Project detail returns stable `effective_permissions`.
+- Upload task creation is rejected without `dataset.upload` or `upload.create`.
+- Presign, pause, resume, complete, and abort re-evaluate permissions on every request.
+
+### Phase 4 - MinIO/S3 Storage Adapter
 
 Deliverables:
 
 - `ObjectStorage` protocol.
-- `S3MultipartStorage` implementation using boto3.
+- S3/MinIO adapter using boto3.
 - Create multipart upload.
 - Presign upload part.
 - List parts with pagination.
 - Complete multipart upload.
 - Abort multipart upload.
 - Head object.
-- Adapter capability flags for checksums, conditional complete, encryption, object lock, replication metadata, and incomplete multipart listing.
-- Optional checksum, encryption, object-lock, and conditional-write headers in adapter request models.
+- Capability flags for checksums, conditional complete, encryption, object lock, replication metadata, and incomplete multipart listing.
+- Internal S3 client using `S3_ENDPOINT_URL`.
+- Presign S3 client using `S3_PUBLIC_ENDPOINT_URL`.
 
 Acceptance criteria:
 
-- Integration test can create multipart upload in MinIO.
-- Integration test can presign a part URL and upload bytes with HTTP PUT.
-- Integration test can list the part from MinIO.
-- Integration test can complete and read/head final object.
-- Adapter cleanly reports unsupported storage-native checksum or object-lock capabilities.
+- Integration test creates a multipart upload in MinIO.
+- Integration test presigns a part URL reachable from the host at `localhost:9000`.
+- Integration test uploads bytes through the presigned URL and lists the part.
+- Integration test completes the object and verifies it with head/read behavior.
+- No implementation rewrites a signed URL host as a string post-process.
 
-### Phase 3 - Core upload API
+### Phase 5 - Upload Task Creation
 
 Deliverables:
 
-- API key auth dependency.
-- Error response format.
-- Request ID middleware.
-- `GET /v1/projects`.
-- `GET /v1/projects/{id}` with `effective_permissions`.
-- `POST /v1/projects/{id}/datasets`.
-- `GET /v1/datasets/{id}` with `effective_permissions`.
-- `GET /v1/me/permissions` or equivalent permission introspection endpoint.
-- `POST /v1/projects/{project_id}/upload-tasks` for the single-file task path.
-- Upload task creation that creates one upload object, one dataset, and one upload session transactionally.
-- `POST /v1/uploads`.
+- `POST /v1/projects/{project_id}/upload-tasks`.
+- Transactional creation of UploadTask, UploadObject, Dataset, UploadSession, and MinIO multipart upload.
+- Idempotency support for task creation.
+- Quota checks before storage multipart initiation.
+- Storage-policy selection from project default or explicit allowed policy.
+- Object key generation using tenant/project/dataset/session namespace.
+
+Acceptance criteria:
+
+- Single-file task creation returns task, object, dataset, and session identifiers.
+- Multi-file task creation creates one UploadObject and UploadSession per object.
+- Retrying the same idempotency key and fingerprint returns the same task.
+- Quota rejection does not create storage-side multipart uploads.
+- Client-supplied filenames never become raw object keys.
+
+### Phase 6 - Upload Session Runtime API
+
+Deliverables:
+
 - `GET /v1/uploads/{id}`.
 - `POST /v1/uploads/{id}/parts/presign`.
 - `POST /v1/uploads/{id}/parts/ack`.
@@ -95,95 +144,77 @@ Deliverables:
 - `POST /v1/uploads/{id}/resume`.
 - `POST /v1/uploads/{id}/complete`.
 - `POST /v1/uploads/{id}/abort`.
-- Idempotency support for create/pause/resume/complete/abort.
-- Quota checks before storage multipart initiation.
-- Presigned URL response includes required signed headers.
-- Browser CORS expectations are documented and testable in local MinIO setup.
+- Idempotency support for pause, resume, complete, and abort.
+- Storage-authoritative completion using `ListParts`.
 
 Acceptance criteria:
 
-- OpenAPI docs show all endpoints.
-- Integration tests cover successful multipart upload through API + direct MinIO PUT.
-- Upload task creation updates task/object/dataset/session rows consistently.
-- Complete missing parts returns 409.
-- Successful complete updates dataset object metadata and task aggregate counters.
-- Pause rejects presign and resume allows fresh presign.
-- Abort is idempotent.
-- Quota rejection does not create storage-side multipart upload.
-- Signed-header mismatch is covered by an integration test when required headers are enabled.
+- Presign is rejected while paused.
+- Resume allows fresh presigned URLs.
+- Complete fails with `409 upload.missing_parts` when storage parts are missing.
+- Complete succeeds only after all expected parts exist in object storage.
+- Abort is idempotent and never deletes completed final objects.
 - Tenant isolation tests pass.
 
-### Phase 4 - Python CLI uploader
+### Phase 7 - Python CLI Uploader
 
 Deliverables:
 
 - `uploadctl` command.
-- Upload command.
-- Resume command.
-- Status command.
-- Pause command.
-- Server-side resume command.
-- Abort command.
-- Local manifest persistence.
+- Upload command using `POST /v1/projects/{project_id}/upload-tasks`.
+- Resume command from local manifest.
+- Status, pause, server-side resume, and abort commands.
+- Local manifest with project, task, object, dataset, session, file, and part state.
 - Concurrent part upload.
-- Retry and URL-expiry handling.
-- Pause stops scheduling new parts and flushes the manifest.
+- URL-expiry detection and re-presign behavior.
+- Pause behavior that stops scheduling new parts and flushes the manifest.
 
 Acceptance criteria:
 
 - CLI uploads a multi-part file to local MinIO through the API.
 - CLI can resume after manual interruption.
 - CLI can pause and resume a multi-part upload.
-- CLI does not store presigned URLs in manifest.
+- CLI manifest does not store presigned URLs.
 - CLI progress output is readable.
 
-### Phase 5 - Project, dataset, device, and task-center APIs
+### Phase 8 - Dataset Product Lifecycle
 
 Deliverables:
 
-- Project CRUD and archive/restore/delete.
-- Project member management through permission grants.
-- Dataset list/search/filter/detail/update.
-- Dataset tags and tag categories.
-- Dataset soft delete, restore, and purge.
+- Project dataset list/search/filter/detail/update APIs.
 - Dataset download URL endpoint.
-- Device register/update/disable/enable.
-- Device credential rotation.
-- Device credential expiration, revocation, and optional overlap window.
-- Device provisioning state and device-to-MQTT topic authorization model.
-- Upload task list/detail and task/object pause/resume/cancel/retry.
-- Dataset quarantine/release and legal-hold APIs if enabled.
-- Audit events for sensitive actions.
+- Dataset archive, soft delete, restore, and purge APIs.
+- Dataset tag category and tag APIs.
+- Dataset exposure checks using dataset, validation, and recovery state.
+- Audit events for download, delete, restore, purge, and policy denial.
 
 Acceptance criteria:
 
-- A view-only actor can list allowed projects and datasets but cannot upload.
-- An upload actor can create upload tasks but cannot manage members.
-- A disabled device cannot create an upload task.
-- A revoked or expired device credential cannot create upload tasks or request presigned URLs.
-- Dataset download URL requires `dataset.download`.
-- Dataset download is rejected while dataset is quarantined, validation failed, rejected, or recovery pending.
-- Dataset purge requires `dataset.purge` and retention-policy approval.
-- Dataset purge is rejected under legal hold or storage object lock.
-- Audit events are written for permission, credential, download, delete, restore, and purge actions.
+- Dataset download requires `dataset.download`.
+- Dataset download is rejected while dataset is `QUARANTINED`, `REJECTED`, validation is not passed when required, or recovery state is not `NORMAL`.
+- Soft-deleted datasets are hidden from normal lists and restorable.
+- Purge requires permission and retention-policy approval.
+- Purge is rejected under legal hold or object lock.
 
-### Phase 6 - Batch upload support
+### Phase 9 - Device Identity and Device Upload Authorization
 
 Deliverables:
 
-- `POST /v1/upload-batches`.
-- `GET /v1/upload-batches/{id}`.
-- `POST /v1/upload-batches/{id}/complete`.
-- Ability to create upload sessions under a batch.
-- CLI support for a directory/batch manifest.
+- Device register/update/disable/enable.
+- Device credential provisioning and rotation.
+- Credential material returned once only during provisioning or rotation.
+- Credential expiration, revocation, and optional overlap window.
+- Device-to-project authorization.
+- Device upload task creation path.
 
 Acceptance criteria:
 
-- E2E test uploads multiple files under one batch.
-- Batch cannot complete until child uploads are complete.
-- Batch completion is idempotent.
+- Disabled, revoked, or expired device credentials cannot create upload tasks or request presigned URLs.
+- Device credential rotation invalidates or overlaps old credentials according to policy.
+- No endpoint reveals existing raw credential material.
+- Device upload requests still create ordinary UploadTasks and UploadSessions.
 
-### Phase 7 - Cleanup worker and lifecycle
+### Phase 10 - Workers and Lifecycle Automation
 
 Deliverables:
 
@@ -192,21 +223,19 @@ Deliverables:
 - Abort expired multipart uploads.
 - Dataset recycle-bin retention enforcement.
 - Dataset purge object-storage deletion.
-- Backup/restore reconciliation command.
-- Recovery state transitions for metadata/object mismatches.
-- Cleanup idempotency records.
-- Cleanup events/metrics.
+- Backup/restore reconciliation command using `recovery_status`.
+- Outbox append helper.
+- Outbox dispatcher with retry and dead-letter policy.
 
 Acceptance criteria:
 
-- Test session expires and worker aborts it.
-- Test soft-deleted dataset is restored before retention expiry.
-- Test purge deletes final object only when retention allows it.
-- Test restore reconciliation detects missing final object and orphan object.
+- Expired sessions transition through `EXPIRED -> ABORTING -> ABORTED`.
 - Worker can be run repeatedly safely.
-- Worker errors are logged and metriced.
+- Restore reconciliation detects missing final objects and object-only or metadata-only cases.
+- Domain writes and outbox inserts commit atomically.
+- Outbox delivery failure never rolls back the completed domain action.
 
-### Phase 8 - Dataset validation and metadata extraction
+### Phase 11 - Dataset Validation and Metadata Extraction
 
 Deliverables:
 
@@ -227,24 +256,7 @@ Acceptance criteria:
 - Dataset remains unavailable for download/processing while quarantined or rejected.
 - Retry validation is permission-checked and idempotent.
 
-### Phase 9 - Outbox and optional notification delivery
-
-Deliverables:
-
-- Transactional outbox append helper.
-- Outbox dispatcher worker.
-- Retry and dead-letter policy.
-- Optional WebSocket/webhook publisher interface.
-- Optional EMQX publisher for device/task status events.
-
-Acceptance criteria:
-
-- Domain writes and outbox inserts commit atomically.
-- Dispatcher retry behavior is test-covered.
-- Failed delivery never rolls back the completed domain action.
-- Presigned URL responses are never retained by MQTT.
-
-### Phase 10 - Observability
+### Phase 12 - Observability and Operations
 
 Deliverables:
 
@@ -252,21 +264,20 @@ Deliverables:
 - Prometheus metrics endpoint.
 - Storage operation latency metrics.
 - API latency metrics.
-- Quota, rate-limit, backpressure, validation backlog, and replication metrics.
+- Quota, rate-limit, backpressure, validation backlog, cleanup, recovery, and outbox metrics.
 - SLO and alert rule examples.
-- Operator runbook notes for KMS, CORS, storage outage, leaked URL, device compromise, and recovery.
+- Operator runbook notes for KMS, CORS, storage outage, leaked URL, device compromise, cleanup backlog, outbox dead letters, and recovery.
 - Optional OpenTelemetry tracing.
-- Audit query endpoint for operators.
+- Operator-only audit query endpoint.
 
 Acceptance criteria:
 
 - `/metrics` returns expected counters/histograms.
 - Logs contain request ID, project ID, dataset ID, session ID, operation, and status where applicable.
 - Presigned URL query strings are not logged.
-- Outbox, validation, download URL, device, and purge paths emit metrics.
-- Alert thresholds are documented for storage errors, cleanup backlog, validation backlog, and outbox dead letters.
+- Alert thresholds are documented for storage errors, cleanup backlog, validation backlog, recovery mismatches, and outbox dead letters.
 
-### Phase 11 - Failure injection and benchmark suite
+### Phase 13 - Failure Injection and Benchmark Suite
 
 Deliverables:
 
@@ -292,9 +303,9 @@ Acceptance criteria:
 - Failure injection test suite passes locally.
 - Benchmark can upload at least a generated 512 MiB file against local MinIO.
 
-### Phase 12 - Optional EMQX/MQTT control-plane adapter
+### Phase 14 - Optional EMQX/MQTT Control-Plane Adapter
 
-Only implement after HTTP upload correctness, authorization, outbox, and device credentials are implemented.
+Only implement after HTTP upload correctness, authorization, device credentials, and outbox behavior are implemented.
 
 Deliverables:
 
@@ -316,7 +327,7 @@ Acceptance criteria:
 - Device cannot publish or subscribe outside its authorized topic namespace.
 - Disabled or revoked devices are rejected.
 
-### Phase 13 - Optional Go uploader
+### Phase 15 - Optional Go Uploader
 
 Deliverables:
 
@@ -331,9 +342,9 @@ Acceptance criteria:
 - Benchmark compares Python CLI and Go uploader.
 - Go implementation must not bypass the backend or use MinIO credentials.
 
-### Phase 14 - Optional Go edge/control gateway
+### Phase 16 - Optional Go Edge/Control Gateway
 
-Only implement if the core system is complete.
+Only implement if the core system is complete and a gateway has a real deployment reason.
 
 Possible scope:
 
@@ -347,6 +358,3 @@ Acceptance criteria:
 
 - Gateway never proxies file bytes.
 - Gateway can be disabled without changing core upload semantics.
-
----
-

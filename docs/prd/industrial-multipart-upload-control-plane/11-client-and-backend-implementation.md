@@ -39,16 +39,17 @@ uploadctl abort <session_id> --api-url http://localhost:8000 --api-key dev-api-k
 ```text
 1. Validate local file exists and is stable.
 2. Optionally compute full-file SHA256.
-3. Call POST /v1/uploads.
-4. Write local manifest.
-5. Compute missing part numbers.
-6. Request presigned URLs in batches.
-7. Upload parts with bounded concurrency.
-8. Ack successful parts.
-9. If pause is requested, stop scheduling new parts and flush manifest.
-10. Periodically flush manifest to disk.
-11. Call complete.
-12. Mark manifest completed.
+3. Call `POST /v1/projects/{project_id}/upload-tasks`.
+4. Read the returned task, object, dataset, and session identifiers.
+5. Write local manifest.
+6. Compute missing part numbers.
+7. Request presigned URLs in batches.
+8. Upload parts with bounded concurrency.
+9. Ack successful parts.
+10. If pause is requested, stop scheduling new parts and flush manifest.
+11. Periodically flush manifest to disk.
+12. Call complete.
+13. Mark manifest completed.
 ```
 
 ### 23.3 Concurrency
@@ -113,7 +114,7 @@ Special handling:
 
 The client must avoid loading the entire file into memory.
 
-Acceptable first implementation:
+Acceptable initial implementation:
 
 - Load one part into memory per active worker.
 - With 8 concurrency and 64 MiB parts, peak part buffer memory is roughly 512 MiB.
@@ -190,7 +191,7 @@ The client must not assume the backend can cancel an already issued presigned UR
 ### 24.1 Recommended stack
 
 ```text
-Python 3.12+
+Python 3.13
 FastAPI
 Pydantic v2
 SQLAlchemy 2.x
@@ -206,7 +207,7 @@ Docker Compose
 
 ### 24.2 Synchronous or asynchronous backend
 
-Recommended first implementation:
+Recommended initial implementation:
 
 - Use regular synchronous FastAPI route functions.
 - Use SQLAlchemy sync engine.
@@ -426,19 +427,18 @@ ENABLE_CHECKSUM_VALIDATOR=false
 
 Important distinction:
 
-- `S3_ENDPOINT_URL` is used by the backend inside Docker/network.
-- `S3_PUBLIC_ENDPOINT_URL` may be needed when generating presigned URLs that the host client can reach.
+- `S3_ENDPOINT_URL` is used by the backend for internal storage control calls inside Docker/network.
+- `S3_PUBLIC_ENDPOINT_URL` is used when generating presigned URLs for clients running on the host or in a browser.
 
-For local Docker Compose, the backend may talk to `http://minio:9000`, but the CLI running on host may need URLs pointing to `http://localhost:9000`.
+For local Docker Compose, the backend talks to MinIO internally at `http://minio:9000`, while host clients and local browsers reach MinIO at `http://localhost:9000`.
 
-The storage adapter should support endpoint URL rewriting if required:
+Do not generate a presigned URL against `http://minio:9000` and then replace the host with `localhost:9000` as a string operation. That can break signatures depending on the provider and signing mode.
 
-```text
-internal signed URL host: minio:9000
-external client host: localhost:9000
-```
+Recommended implementation:
 
-Implementation must be careful: changing the host after signing can break signatures depending on signature configuration. The preferred local setup is to configure the S3 client endpoint to the public endpoint when generating URLs for host clients, or run the CLI inside the same Docker network.
+- Use an internal S3 client configured with `S3_ENDPOINT_URL` for server-side control operations such as create, list, complete, abort, and head.
+- Use a presign S3 client configured with `S3_PUBLIC_ENDPOINT_URL` when issuing URLs to host/browser clients.
+- If a CLI runs inside the Compose network, configure that environment so the presign endpoint is reachable from the CLI container.
 
 Optional EMQX/MQTT settings, only required when MQTT support is enabled:
 
@@ -495,11 +495,21 @@ jaeger
 Minimum Compose behavior:
 
 - Start PostgreSQL.
-- Start MinIO.
+- Start MinIO S3 API and expose it on `http://localhost:9000`.
+- Start MinIO Console and expose it on `http://localhost:9001` for browser inspection.
 - Create required bucket.
 - Run DB migrations.
 - Start API.
 - Start cleanup worker.
+
+Required local port mapping:
+
+```text
+api:      localhost:8000 -> api:8000
+postgres: localhost:15432 -> postgres:5432
+minio:    localhost:9000 -> minio:9000
+console:  localhost:9001 -> minio:9001
+```
 
 Example commands:
 

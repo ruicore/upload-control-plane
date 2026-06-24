@@ -21,7 +21,7 @@ Every endpoint must validate:
 
 - API key is active.
 - Tenant is active.
-- Caller tenant owns the batch/session.
+- Caller tenant owns the task, object, session, or dataset being accessed.
 - Caller has the required effective permission code for the target resource.
 - Optional device restriction matches `source_device_id`.
 
@@ -56,10 +56,6 @@ upload.resume
 upload.abort
 upload.complete
 
-batch.create
-batch.view
-batch.complete
-
 tag.create
 tag.update
 tag.delete
@@ -68,7 +64,6 @@ device.view
 device.create
 device.update
 device.disable
-device.credentials.view
 device.credentials.rotate
 device.credentials.revoke
 
@@ -96,7 +91,6 @@ Authorization examples:
 | Purge dataset | `dataset.purge` | dataset or owning project |
 | Manage tags | `tag.create` / `tag.update` / `tag.delete` | project |
 | Register device | `device.create` | project |
-| View device credentials | `device.credentials.view` | device or owning project |
 | Rotate device credentials | `device.credentials.rotate` | device or owning project |
 | Manage storage policy | `storage_policy.manage` | tenant or project |
 | Manage project members | `project.members.manage` | project |
@@ -148,7 +142,6 @@ On initiation:
 - Validate original filename length.
 - Validate project ownership and project status.
 - Validate dataset ownership and dataset status when `dataset_id` is provided.
-- Validate batch ownership.
 - Validate part count.
 
 On completion:
@@ -160,9 +153,9 @@ On completion:
 Dataset exposure rule:
 
 - Upload completion only proves that object storage assembled the final object.
-- A completed object may still be `QUARANTINED`, `VALIDATING`, `VALIDATION_FAILED`, or `REJECTED` at the dataset layer.
+- A completed object may still have `dataset_status = QUARANTINED` or `REJECTED`, `validation_status = PENDING`, `RUNNING`, or `FAILED`, or `recovery_status != NORMAL`.
 - Download, preview, training-ingestion, and downstream-processing APIs must check dataset exposure status, not only upload session status.
-- The first implementation may mark trusted local uploads `READY` after completion, but the state model must not make `COMPLETED` and `READY` the same concept.
+- Trusted local uploads may be marked `READY` after completion when validation is disabled, but the state model must not make upload `COMPLETED` and dataset `READY` the same concept.
 
 ### 17.5 Transport security
 
@@ -271,6 +264,7 @@ Required lifecycle:
 
 - Device registration creates an inactive or pending device until a provisioning step binds credentials.
 - Credential material must be generated or enrolled through an operator-approved flow.
+- Raw credential material may be returned once during provisioning or rotation. Existing credential material must not be readable later through any API.
 - Devices should use mTLS/X.509, JWT, or scoped API keys depending on deployment maturity; the selected mode must be explicit in deployment docs.
 - Device credentials must have version, issued-at, expires-at, last-used-at, and revoked-at fields.
 - Credential rotation must allow a bounded overlap window when needed for offline devices.

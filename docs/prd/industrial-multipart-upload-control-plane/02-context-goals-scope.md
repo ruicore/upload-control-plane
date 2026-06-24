@@ -168,11 +168,11 @@ The first complete design does not need to implement:
 - Browser UI dashboard, although API design should allow it later.
 - Real payment or quota billing.
 - Real enterprise SSO.
-- Multi-region active-active object replication in the first implementation.
+- Multi-region active-active object replication in the initial product stages.
 - Custom binary transport protocol.
 - tus protocol support.
 - Direct backend file streaming upload.
-- Virus scanning as a blocking step in the first implementation.
+- Virus scanning as a blocking step in the initial product stages.
 - Real production deployment to Kubernetes on day one.
 
 Optional future extensions are allowed, but Codex must not implement them before core upload correctness is complete.

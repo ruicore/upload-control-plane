@@ -4,7 +4,7 @@ This folder is the canonical Codex-readable version of the industrial-grade resu
 
 **Document version:** 1.5
 **Document date:** 2026-06-24
-**Primary implementation language:** Python first; optional Go components later
+**Primary implementation language:** Python 3.13 first; optional Go components later
 **Primary object storage:** MinIO, using S3-compatible multipart upload APIs
 
 ## Reading Order

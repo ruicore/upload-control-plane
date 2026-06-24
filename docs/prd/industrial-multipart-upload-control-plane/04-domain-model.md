@@ -27,16 +27,14 @@ Definitions:
 - UploadSession is one transfer attempt or lifecycle for uploading the dataset's file content.
 - UploadPart is a multipart transport fragment.
 
-Project-level permission grants should be the default data-scope mechanism. Dataset-level grants may be added for exceptions, but the first implementation should avoid complex per-dataset override behavior unless required.
+Project-level permission grants should be the default data-scope mechanism. Dataset-level grants may be added for exceptions, but the initial product stages should avoid complex per-dataset override behavior unless required.
 
-### 8.1 Upload batch
+### 8.1 Upload task grouping
 
-An upload batch groups multiple file upload sessions into one logical bulk-import or ingestion job.
-
-Example:
+UploadTask is the only product-level grouping model for upload work. It covers both single-file and multi-file ingestion jobs, including Web uploads, CLI uploads, device-triggered uploads, and future task-center workflows.
 
 ```text
-Batch: robot-run-2026-06-10-shanghai-factory-line-3
+UploadTask: robot-run-2026-06-10-shanghai-factory-line-3
   - front_camera.mp4
   - rear_camera.mp4
   - lidar.bin
@@ -44,13 +42,14 @@ Batch: robot-run-2026-06-10-shanghai-factory-line-3
   - diagnostics.zip
 ```
 
-A batch is optional. A file upload can exist without a batch. A batch is not the same as a dataset.
+The design intentionally does not expose a separate UploadBatch concept. A second batch abstraction would duplicate UploadTask status, progress, retry, pause/resume, and completion ownership.
 
-For the first production-oriented model:
+For the production-oriented model:
 
 - A project contains many datasets.
 - A dataset usually owns one active upload session.
-- A batch may create multiple datasets and upload sessions under one project.
+- One UploadTask may create one or more UploadObjects.
+- Each UploadObject usually maps to one dataset and one UploadSession.
 
 ### 8.2 Project management
 
@@ -106,7 +105,7 @@ Dataset operations should support:
 - Purge after authorization and retention checks.
 - Generate short-lived download URL after checking `dataset.download`.
 
-The first implementation may keep one dataset equal to one final object. If dataset versioning becomes required, add `dataset_versions` rather than overwriting a ready dataset row.
+The initial product model may keep one dataset equal to one final object. If dataset versioning becomes required, add `dataset_versions` rather than overwriting a ready dataset row.
 
 ### 8.4 Upload task and upload object
 
@@ -138,7 +137,7 @@ UploadObject owns:
 - Per-object retries and error details.
 - Pause/resume/cancel/retry at object level.
 
-For single-file flows, the API may create one task containing one object. This keeps the task center and retry model consistent.
+For single-file flows, the API creates one task containing one object. This keeps the task center, retry model, and audit trail consistent with multi-file flows. Direct public creation of a bare UploadSession is not the product entrypoint; UploadSession is the storage-protocol runtime owned by UploadTask / UploadObject creation.
 
 ### 8.5 Device registry
 
@@ -161,9 +160,9 @@ Device operations should support:
 - Disable / enable / revoke.
 - View connection and upload status.
 - Grant device access to projects.
-- Trigger upload from device local data.
+- Trigger upload tasks for device local data.
 
-Device credentials and device credential views must be audited.
+Device credential provisioning and rotation must be audited. Raw device credentials are write-only from the platform perspective: they may be returned once during provisioning or rotation, but no API should later reveal existing credential material.
 
 ### 8.6 Storage policies
 
@@ -203,7 +202,7 @@ For robotics and industrial data, extracted metadata may include:
 - Schema version.
 - Preview availability.
 
-Validation failures should not corrupt upload correctness. They should transition the dataset to `VALIDATION_FAILED` or keep it in `PROCESSING` with a visible error, depending on policy.
+Validation failures should not corrupt upload correctness. They should set `validation_status = FAILED` and transition the dataset to `REJECTED`, `QUARANTINED`, or keep it in `PROCESSING` with a visible error, depending on policy.
 
 ### 8.8 Lifecycle, recycle bin, and retention
 
@@ -250,7 +249,6 @@ An upload session represents one logical final object.
 It owns:
 
 - Tenant ID.
-- Optional batch ID.
 - Object key.
 - Original filename.
 - File size.

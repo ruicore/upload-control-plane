@@ -145,7 +145,7 @@ MQTT messages should include:
 
 Presigned URL responses over MQTT must be treated as secret-bearing responses. They must be short-lived, scoped to specific part numbers, and never retained by the broker.
 
-The first implementation may use only HTTP APIs and CLI upload. MQTT support should be added as a later adapter after the core upload correctness model is implemented and tested.
+The initial product stages may use only HTTP APIs and CLI upload. MQTT support should be added as a later adapter after the core upload correctness model is implemented and tested.
 
 ---
 

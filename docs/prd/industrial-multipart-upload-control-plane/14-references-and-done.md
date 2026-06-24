@@ -145,26 +145,30 @@ Codex must follow these rules:
 7. Always keep state transitions explicit and test-covered.
 8. Add tests with every new feature.
 9. Do not silently change API response shapes after they are introduced.
-10. Prefer small, well-named services over one large upload service class.
-11. Keep domain logic independent from FastAPI, SQLAlchemy, and boto3.
-12. Avoid high-cardinality metric labels.
-13. Mask secrets and presigned URL query strings in logs.
-14. Make local development deterministic.
-15. Treat permission codes and `permission_grants` as the authorization source of truth.
-16. Re-evaluate effective permissions on every control-plane request.
-17. Record audit events for permission, device credential, download, delete, restore, and purge actions.
-18. Insert outbox events in the same transaction as the domain change they describe.
-19. Keep Go and MQTT components optional until Python backend, CLI, authorization, and outbox behavior are correct.
+10. Use `POST /v1/projects/{project_id}/upload-tasks` as the public creation entrypoint for upload work.
+11. Do not expose a separate UploadBatch API or schema.
+12. Do not expose a public bare UploadSession creation endpoint unless a later internal/admin use case is explicitly accepted.
+13. Do not expose existing raw device credential material after provisioning or rotation.
+14. Prefer small, well-named services over one large upload service class.
+15. Keep domain logic independent from FastAPI, SQLAlchemy, and boto3.
+16. Avoid high-cardinality metric labels.
+17. Mask secrets and presigned URL query strings in logs.
+18. Make local development deterministic.
+19. Treat permission codes and `permission_grants` as the authorization source of truth.
+20. Re-evaluate effective permissions on every control-plane request.
+21. Record audit events for permission, device credential, download, delete, restore, and purge actions.
+22. Insert outbox events in the same transaction as the domain change they describe.
+23. Keep Go and MQTT components optional until Python backend, CLI, authorization, and outbox behavior are correct.
 
 ---
 
 
 ## 35. Recommended First Codex Task
 
-The first implementation task should be:
+The first coding task should be:
 
 ```text
-Create the repository scaffold for upload-control-plane with FastAPI, PostgreSQL, MinIO Docker Compose, pyproject.toml, ruff, pytest, a health endpoint, configuration loading, and a Makefile. Do not implement upload APIs yet.
+Create the Python 3.13 repository scaffold for upload-control-plane with FastAPI, PostgreSQL, MinIO Docker Compose, MinIO Console access, pyproject.toml, ruff, pytest, a health endpoint, configuration loading, and a Makefile. Do not implement upload APIs yet.
 ```
 
 Acceptance criteria for the first task:
@@ -173,6 +177,12 @@ Acceptance criteria for the first task:
 make dev-up
 make test
 curl http://localhost:8000/healthz
+```
+
+The local MinIO Console must be reachable from a browser at:
+
+```text
+http://localhost:9001
 ```
 
 Expected health response:
@@ -192,7 +202,7 @@ Expected health response:
 The second task should be:
 
 ```text
-Implement domain-level part size selection, part range calculation, upload session state machine, and unit tests. Do not add FastAPI upload endpoints yet.
+Implement domain-level part size selection, part range calculation, upload session state machine, dataset lifecycle state rules, validation state rules, recovery state rules, permission-code evaluation, and unit tests. Do not add FastAPI upload endpoints yet.
 ```
 
 Acceptance criteria:
@@ -200,6 +210,8 @@ Acceptance criteria:
 - `choose_part_size` handles explicit and automatic part sizes.
 - `get_part_range` handles first, middle, and last parts.
 - State transition rules reject invalid transitions.
+- Dataset exposure rules keep upload `COMPLETED`, dataset `READY`, validation result, and recovery state separate.
+- Permission evaluation supports inherited grants and deny-over-allow.
 - Unit tests cover boundary cases around 5 MiB, 64 MiB, 5 GiB, and 10,000 parts.
 
 ---

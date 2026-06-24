@@ -175,16 +175,16 @@ PATCH  /v1/projects/{project_id}/devices/{device_id}
 POST   /v1/projects/{project_id}/devices/{device_id}/disable
 POST   /v1/projects/{project_id}/devices/{device_id}/enable
 POST   /v1/projects/{project_id}/devices/{device_id}/credentials/rotate
-GET    /v1/projects/{project_id}/devices/{device_id}/credentials
-POST   /v1/projects/{project_id}/devices/{device_id}/local-data
 POST   /v1/projects/{project_id}/devices/{device_id}/upload
 ```
+
+Device credential creation and rotation may return new credential material once. Existing credential material must not be readable later through a `GET` endpoint.
 
 Upload task APIs:
 
 ```text
 POST   /v1/projects/{project_id}/upload-tasks
-GET    /v1/upload-tasks
+GET    /v1/projects/{project_id}/upload-tasks
 GET    /v1/projects/{project_id}/upload-tasks/{task_id}
 POST   /v1/projects/{project_id}/upload-tasks/{task_id}/pause
 POST   /v1/projects/{project_id}/upload-tasks/{task_id}/resume
@@ -213,20 +213,23 @@ Validation, audit, and outbox APIs:
 GET    /v1/projects/{project_id}/datasets/{dataset_id}/validation
 POST   /v1/projects/{project_id}/datasets/{dataset_id}/validation/retry
 GET    /v1/audit-events
-GET    /v1/outbox-events
 ```
 
-The first implementation does not need to build all UI surfaces, but the domain model and migrations should avoid choices that block these API groups.
+Outbox events are an internal recoverable-delivery mechanism. They should not be exposed as ordinary product APIs; an operator-only inspection API may be added later after authentication, retention, and redaction rules are explicit.
 
 ---
 
 
-## 11. Upload Batch APIs
+## 11. Upload Task Creation APIs
 
-### 11.1 Create upload batch
+UploadTask is the public product entrypoint for creating upload work. A task may contain one object for the common single-file path or multiple objects for Web, CLI, or device multi-file ingestion.
+
+Creating an upload task must create the required datasets, upload objects, upload sessions, and storage multipart uploads transactionally enough that retries return a consistent result through idempotency.
+
+### 11.1 Create upload task
 
 ```http
-POST /v1/upload-batches
+POST /v1/projects/{project_id}/upload-tasks
 Authorization: Bearer <api_key>
 Idempotency-Key: <key>
 Content-Type: application/json
@@ -236,10 +239,24 @@ Request:
 
 ```json
 {
-  "name": "robot-run-2026-06-10-line-3",
-  "source_device_id": "robot-17",
-  "expected_file_count": 5,
-  "expected_total_size_bytes": 23891238912,
+  "task_name": "robot-run-2026-06-10-line-3",
+  "task_initiator": "cli",
+  "source_device_id": "2dc9ec4e-d1df-45bc-9ef9-49a5d09468b7",
+  "storage_policy_id": "optional-policy-id",
+  "objects": [
+    {
+      "dataset_name": "front-camera-2026-06-10",
+      "object_name": "front_camera.hdf5",
+      "file_size_bytes": 5368709120,
+      "content_type": "application/x-hdf5",
+      "part_size_bytes": 67108864,
+      "checksum_sha256": "optional-full-file-sha256-hex",
+      "metadata": {
+        "camera": "front",
+        "recorded_at": "2026-06-10T08:00:00Z"
+      }
+    }
+  ],
   "metadata": {
     "site": "factory-shanghai",
     "line": "3",
@@ -252,138 +269,53 @@ Response `201 Created`:
 
 ```json
 {
-  "batch_id": "5e17d62f-1c65-4f49-85c1-7cd78356a582",
-  "status": "OPEN",
+  "task_id": "b3fe6ef8-bb14-44a6-b8f0-124483e5d4d1",
+  "project_id": "6cbce9cd-7d78-48dc-b89d-f13d724f3be8",
+  "status": "PENDING",
+  "object_count": 1,
+  "total_size_bytes": 5368709120,
+  "objects": [
+    {
+      "object_id": "21cf75e2-70f8-4b9b-9144-1f97fe7d05f3",
+      "dataset_id": "7af07a93-b4a9-48d5-8f3b-0184d2cc66bd",
+      "session_id": "2d4581a2-1c36-40ee-8b2e-4a225fbe4ce9",
+      "status": "PENDING",
+      "object_name": "front_camera.hdf5",
+      "bucket": "robot-data",
+      "object_key": "tenants/tnt_123/projects/prj_456/datasets/ds_789/2026/06/10/2d4581a2-1c36-40ee-8b2e-4a225fbe4ce9/front_camera.hdf5",
+      "file_size_bytes": 5368709120,
+      "part_size_bytes": 67108864,
+      "part_count": 80,
+      "expires_at": "2026-06-11T08:30:00Z"
+    }
+  ],
   "created_at": "2026-06-10T08:30:00Z"
 }
 ```
 
-### 11.2 Get batch status
-
-```http
-GET /v1/upload-batches/{batch_id}
-Authorization: Bearer <api_key>
-```
-
-Response:
-
-```json
-{
-  "batch_id": "5e17d62f-1c65-4f49-85c1-7cd78356a582",
-  "status": "OPEN",
-  "expected_file_count": 5,
-  "actual_file_count": 3,
-  "completed_file_count": 2,
-  "failed_file_count": 0,
-  "expected_total_size_bytes": 23891238912,
-  "completed_size_bytes": 10737418240,
-  "uploads": [
-    {
-      "session_id": "2d4581a2-1c36-40ee-8b2e-4a225fbe4ce9",
-      "original_filename": "front_camera.mp4",
-      "status": "COMPLETED",
-      "file_size_bytes": 5368709120
-    }
-  ]
-}
-```
-
-### 11.3 Complete batch
-
-```http
-POST /v1/upload-batches/{batch_id}/complete
-Authorization: Bearer <api_key>
-Idempotency-Key: <key>
-```
-
 Rules:
 
-- Batch can only complete if all child upload sessions are `COMPLETED`.
-- If any upload is incomplete, return `409 Conflict`.
-- Completion is idempotent.
-
-Response:
-
-```json
-{
-  "batch_id": "5e17d62f-1c65-4f49-85c1-7cd78356a582",
-  "status": "COMPLETED",
-  "completed_at": "2026-06-10T09:14:12Z"
-}
-```
+- Caller must have `dataset.upload` or `upload.create` on the project.
+- `objects` must contain at least one object and must not exceed the configured maximum objects per task.
+- Each object must have a positive `file_size_bytes`.
+- `part_size_bytes` is optional. If omitted, server chooses it.
+- Non-final part size must be at least 5 MiB.
+- The resulting part count for each object must be less than or equal to 10,000.
+- Server must create object keys. Clients may provide object names and original filenames, but not storage keys.
+- Server must reject path traversal in object names and filenames.
+- Server must reject unsupported or disallowed content types if configured.
+- Server must create one storage multipart upload per UploadObject and persist the returned storage upload ID.
+- Retrying the same idempotency key and request fingerprint must return the same task.
+- Direct public creation of a bare upload session is not the product entrypoint.
 
 ---
 
 
-## 12. File Upload APIs
+## 12. Upload Session Runtime APIs
 
-### 12.1 Create upload session
+UploadSession APIs operate on sessions created by UploadTask creation. They control upload runtime behavior but do not create datasets, upload objects, or product tasks.
 
-```http
-POST /v1/uploads
-Authorization: Bearer <api_key>
-Idempotency-Key: <key>
-Content-Type: application/json
-```
-
-Request:
-
-```json
-{
-  "project_id": "6cbce9cd-7d78-48dc-b89d-f13d724f3be8",
-  "dataset_id": "7af07a93-b4a9-48d5-8f3b-0184d2cc66bd",
-  "batch_id": "5e17d62f-1c65-4f49-85c1-7cd78356a582",
-  "original_filename": "front_camera.hdf5",
-  "file_size_bytes": 5368709120,
-  "content_type": "application/x-hdf5",
-  "part_size_bytes": 67108864,
-  "checksum_sha256": "optional-full-file-sha256-hex",
-  "source_device_id": "robot-17",
-  "metadata": {
-    "camera": "front",
-    "recorded_at": "2026-06-10T08:00:00Z"
-  }
-}
-```
-
-Rules:
-
-- Caller must have `dataset.upload` or `upload.create` on the project or dataset.
-- `project_id` is required for production project-scoped uploads.
-- `dataset_id` is recommended when the dataset record is created before upload.
-- `file_size_bytes` must be positive.
-- `part_size_bytes` is optional. If omitted, server chooses it.
-- Non-final part size must be at least 5 MiB.
-- The resulting part count must be less than or equal to 10,000.
-- Server must generate the object key.
-- Server must reject path traversal in filenames.
-- Server must reject unsupported or disallowed content types if configured.
-- Server must create the multipart upload in MinIO and persist the returned storage upload ID.
-
-Response `201 Created`:
-
-```json
-{
-  "session_id": "2d4581a2-1c36-40ee-8b2e-4a225fbe4ce9",
-  "project_id": "6cbce9cd-7d78-48dc-b89d-f13d724f3be8",
-  "dataset_id": "7af07a93-b4a9-48d5-8f3b-0184d2cc66bd",
-  "batch_id": "5e17d62f-1c65-4f49-85c1-7cd78356a582",
-  "status": "INITIATED",
-  "bucket": "robot-data",
-  "object_key": "tenants/tnt_123/projects/prj_456/datasets/ds_789/2026/06/10/2d4581a2-1c36-40ee-8b2e-4a225fbe4ce9/front_camera.hdf5",
-  "file_size_bytes": 5368709120,
-  "part_size_bytes": 67108864,
-  "part_count": 80,
-  "expires_at": "2026-06-11T08:30:00Z",
-  "created_at": "2026-06-10T08:30:00Z"
-}
-```
-
-Do not return the raw MinIO access key, secret key, or any long-lived storage credential.
-
-The raw storage upload ID may be stored in DB. It does not need to be returned to the client because presigned URLs encode what the client needs. Returning only `session_id` is preferred.
-
-### 12.2 Get upload session
+### 12.1 Get upload session
 
 ```http
 GET /v1/uploads/{session_id}
@@ -416,7 +348,7 @@ Response:
 
 This endpoint may use DB state only for speed. It should not call `ListParts` on every request unless `?reconcile=true` is set.
 
-### 12.3 Presign parts
+### 12.2 Presign parts
 
 ```http
 POST /v1/uploads/{session_id}/parts/presign
@@ -493,7 +425,7 @@ Content-Length: <part-size>
 
 Successful storage response should include an `ETag` header. The client should record it locally and may acknowledge it to the control plane.
 
-### 12.4 Acknowledge uploaded parts
+### 12.3 Acknowledge uploaded parts
 
 ```http
 POST /v1/uploads/{session_id}/parts/ack
@@ -534,7 +466,7 @@ Response:
 }
 ```
 
-### 12.5 List parts / reconcile parts
+### 12.4 List parts / reconcile parts
 
 ```http
 GET /v1/uploads/{session_id}/parts
@@ -582,7 +514,7 @@ For large part counts, support pagination:
 GET /v1/uploads/{session_id}/parts?source=db&limit=500&cursor=...
 ```
 
-### 12.6 Complete upload
+### 12.5 Complete upload
 
 ```http
 POST /v1/uploads/{session_id}/complete
@@ -648,7 +580,7 @@ Missing part response `409 Conflict`:
 }
 ```
 
-### 12.7 Abort upload
+### 12.6 Abort upload
 
 ```http
 POST /v1/uploads/{session_id}/abort
@@ -683,7 +615,7 @@ Response:
 }
 ```
 
-### 12.8 Pause upload
+### 12.7 Pause upload
 
 ```http
 POST /v1/uploads/{session_id}/pause
@@ -724,7 +656,7 @@ Response:
 }
 ```
 
-### 12.9 Resume upload
+### 12.8 Resume upload
 
 ```http
 POST /v1/uploads/{session_id}/resume
@@ -761,7 +693,7 @@ Response:
 }
 ```
 
-### 12.10 Extend session expiry
+### 12.9 Extend session expiry
 
 ```http
 POST /v1/uploads/{session_id}/extend

@@ -17,8 +17,11 @@ message
 request_id
 trace_id
 tenant_id
+project_id
+task_id
+object_id
+dataset_id
 session_id
-batch_id
 actor_id
 operation
 storage_operation
@@ -199,7 +202,7 @@ Required unit tests:
 - Outbox retry backoff and dead-letter transition rules.
 - Missing part validation.
 - File mutation detection in CLI manifest.
-- Dataset exposure-state rules for `COMPLETED`, `QUARANTINED`, `VALIDATING`, `READY`, and `REJECTED`.
+- Dataset exposure-state rules for upload `COMPLETED`, dataset `QUARANTINED`, dataset `READY`, dataset `REJECTED`, validation state, and recovery state.
 
 ### 28.2 Integration tests
 
@@ -210,7 +213,7 @@ Required integration tests:
 1. Project list only returns projects where caller has `project.view`.
 2. Project detail returns stable `effective_permissions`.
 3. Dataset create is rejected without `dataset.create`.
-4. Upload creation is rejected without `dataset.upload` or `upload.create`.
+4. Upload task creation is rejected without `dataset.upload` or `upload.create`.
 5. Storage policy defaults are applied from project to upload task/session.
 6. Upload task creation creates task, object, dataset, session, and MinIO multipart upload consistently.
 7. Presign is rejected without `upload.presign`.
@@ -264,7 +267,7 @@ Required E2E tests using CLI:
 7. Pause with in-flight parts allowed to finish, resume, and complete using storage-observed parts.
 8. Create a project-scoped dataset upload and verify the dataset becomes `READY`.
 9. Download a completed dataset through a short-lived presigned download URL.
-10. Run batch upload with multiple files and complete batch.
+10. Run a multi-file UploadTask and complete every child UploadObject.
 11. Run an API-only device upload flow using device credentials.
 12. Run permission-denied flows for view-only and upload-only actors.
 
@@ -274,7 +277,7 @@ Required failure modes:
 
 | Failure | Expected behavior |
 |---|---|
-| API timeout after session creation | Retrying init with same idempotency key returns same session |
+| API timeout after upload task creation | Retrying with same idempotency key returns the same task, objects, datasets, and sessions |
 | Presigned URL expires | Client requests a new URL and retries part |
 | Part upload network failure | Only failed part is retried |
 | Client crash | Manifest resumes from storage reconciliation |
@@ -287,7 +290,7 @@ Required failure modes:
 | DB has ack but storage lacks part | Complete rejects missing storage part |
 | Storage has part but DB lacks ack | Reconcile updates DB and complete can succeed |
 | Storage complete succeeds but API response lost | Retry complete returns completed state after repair/reconcile |
-| Dataset validation fails | Dataset remains visible with validation failure status and error details |
+| Dataset validation fails | Dataset remains visible with validation failure status and error details, but does not become downloadable as `READY` |
 | Outbox publish fails | Domain transaction remains committed; outbox retries later |
 | Device credential revoked mid-upload | New control-plane requests are rejected; already uploaded storage parts remain reconciliable |
 | Purge requested before retention allows it | API rejects purge and records audit event |
@@ -338,7 +341,7 @@ Required security/governance test cases:
 2. Metadata rejects configured secret-looking keys such as `password`, `token`, and `secret`.
 3. Unsupported content type is rejected when allowlist is enabled.
 4. Original filename is stored only as metadata and never appears in object key.
-5. Dataset cannot be downloaded while `QUARANTINED`, `VALIDATING`, or `REJECTED`.
+5. Dataset cannot be downloaded while `dataset_status` is `QUARANTINED` or `REJECTED`, while required validation is not passed, or while `recovery_status` is not `NORMAL`.
 6. Dataset can be downloaded after validation marks it `READY` and caller has `dataset.download`.
 7. Audit events are written for legal hold, purge denial, credential revocation, and validation release.
 8. Presigned URLs are redacted from logs, traces, audit events, outbox payloads, and MQTT payload storage.
@@ -457,7 +460,7 @@ Handling:
 Handling:
 
 - Upload session remains `COMPLETED`.
-- Dataset transitions to `VALIDATION_FAILED`, or remains `PROCESSING` with retryable error state if policy requires retry.
+- Dataset sets `validation_status = FAILED` and transitions to `REJECTED`, `QUARANTINED`, or remains `PROCESSING` with retryable error state if policy requires retry.
 - Validation error details are stored in `dataset_validation_results`.
 - The object must not be deleted automatically unless an explicit policy says failed validation should be purged.
 

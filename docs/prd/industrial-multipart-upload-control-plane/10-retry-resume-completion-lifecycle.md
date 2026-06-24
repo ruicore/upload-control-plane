@@ -20,7 +20,7 @@ For endpoints that accept `Idempotency-Key`:
 
 | Endpoint | Retry behavior |
 |---|---|
-| `POST /v1/uploads` | Idempotent by key; returns same session for same request |
+| `POST /v1/projects/{id}/upload-tasks` | Idempotent by key; returns same task, objects, datasets, and sessions for same request |
 | `POST /v1/uploads/{id}/parts/presign` | Safe to retry; may return new URLs with new expiry |
 | `POST /v1/uploads/{id}/parts/ack` | Idempotent upsert |
 | `GET /v1/uploads/{id}/parts` | Safe |
@@ -28,10 +28,7 @@ For endpoints that accept `Idempotency-Key`:
 | `POST /v1/uploads/{id}/resume` | Idempotent if already uploading; otherwise locked |
 | `POST /v1/uploads/{id}/complete` | Idempotent if already completed; otherwise locked |
 | `POST /v1/uploads/{id}/abort` | Idempotent if already aborted |
-| `POST /v1/upload-batches` | Idempotent by key |
-| `POST /v1/upload-batches/{id}/complete` | Idempotent if already completed |
 | `POST /v1/projects/{id}/datasets` | Idempotent by key when provided |
-| `POST /v1/projects/{id}/upload-tasks` | Idempotent by key; returns same task for same request |
 | `POST /v1/projects/{id}/upload-tasks/{task_id}/pause` | Idempotent if already paused |
 | `POST /v1/projects/{id}/upload-tasks/{task_id}/resume` | Idempotent if already processing |
 | `POST /v1/projects/{id}/upload-tasks/{task_id}/cancel` | Idempotent if already cancelled |
@@ -74,8 +71,11 @@ Manifest example:
 {
   "manifest_version": 1,
   "api_base_url": "http://localhost:8000",
+  "project_id": "6cbce9cd-7d78-48dc-b89d-f13d724f3be8",
+  "task_id": "b3fe6ef8-bb14-44a6-b8f0-124483e5d4d1",
+  "object_id": "21cf75e2-70f8-4b9b-9144-1f97fe7d05f3",
+  "dataset_id": "7af07a93-b4a9-48d5-8f3b-0184d2cc66bd",
   "session_id": "2d4581a2-1c36-40ee-8b2e-4a225fbe4ce9",
-  "batch_id": "5e17d62f-1c65-4f49-85c1-7cd78356a582",
   "file_path": "/data/front_camera.mp4",
   "original_filename": "front_camera.mp4",
   "file_size_bytes": 5368709120,
@@ -327,7 +327,7 @@ RECOVERY_METADATA_ONLY
 RECOVERY_OBJECT_ONLY
 ```
 
-The first implementation may document these states without implementing an operator UI, but the schema and workers should not make recovery reconciliation impossible.
+The initial product stages may document these states without implementing an operator UI, but the schema and workers should not make recovery reconciliation impossible.
 
 ---
 
@@ -345,7 +345,7 @@ SERVER_ASYNC_VALIDATE
 SERVER_STRICT_VALIDATE
 ```
 
-Recommended first implementation:
+Recommended initial implementation:
 
 ```text
 CLIENT_REPORTED
@@ -427,7 +427,7 @@ Storage-native checksum requirements:
 - A provider `BadDigest` or equivalent integrity error must transition the session or validation result to a clear failure state.
 - MinIO and AWS S3 compatibility differences must be covered by integration tests before enabling this mode by default.
 
-The first implementation should keep `CLIENT_REPORTED` as the default, but the adapter and schema should not block storage-native checksum adoption.
+The initial product stages should keep `CLIENT_REPORTED` as the default, but the adapter and schema should not block storage-native checksum adoption.
 
 ---
 
