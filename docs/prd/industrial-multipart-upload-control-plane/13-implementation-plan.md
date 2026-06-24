@@ -1,4 +1,4 @@
-﻿# Implementation Plan
+# Implementation Plan
 
 Previous: [Observability, Testing, and Failure Modes](12-observability-testing-failure-modes.md) | Index: [README](README.md) | Next: [References and Completion Criteria](14-references-and-done.md)
 
@@ -6,7 +6,7 @@ Previous: [Observability, Testing, and Failure Modes](12-observability-testing-f
 
 This section is written for Codex. Each phase should result in runnable code and tests.
 
-### Phase 0 鈥?Repository scaffold
+### Phase 0 - Repository scaffold
 
 Deliverables:
 
@@ -29,7 +29,7 @@ curl http://localhost:8000/healthz
 
 must succeed.
 
-### Phase 1 鈥?Domain model and database migrations
+### Phase 1 - Domain model and database migrations
 
 Deliverables:
 
@@ -49,7 +49,7 @@ Acceptance criteria:
 - DB migration applies cleanly from empty database.
 - Seed script produces one usable dev API key, one storage policy, one project, one dataset, one device, and permission grants for upload testing.
 
-### Phase 2 鈥?MinIO/S3 storage adapter
+### Phase 2 - MinIO/S3 storage adapter
 
 Deliverables:
 
@@ -72,7 +72,7 @@ Acceptance criteria:
 - Integration test can complete and read/head final object.
 - Adapter cleanly reports unsupported storage-native checksum or object-lock capabilities.
 
-### Phase 3 鈥?Core upload API
+### Phase 3 - Core upload API
 
 Deliverables:
 
@@ -113,7 +113,7 @@ Acceptance criteria:
 - Signed-header mismatch is covered by an integration test when required headers are enabled.
 - Tenant isolation tests pass.
 
-### Phase 4 鈥?Python CLI uploader
+### Phase 4 - Python CLI uploader
 
 Deliverables:
 
@@ -137,7 +137,7 @@ Acceptance criteria:
 - CLI does not store presigned URLs in manifest.
 - CLI progress output is readable.
 
-### Phase 5 鈥?Project, dataset, device, and task-center APIs
+### Phase 5 - Project, dataset, device, and task-center APIs
 
 Deliverables:
 
@@ -167,7 +167,7 @@ Acceptance criteria:
 - Dataset purge is rejected under legal hold or storage object lock.
 - Audit events are written for permission, credential, download, delete, restore, and purge actions.
 
-### Phase 6 鈥?Batch upload support
+### Phase 6 - Batch upload support
 
 Deliverables:
 
@@ -183,7 +183,7 @@ Acceptance criteria:
 - Batch cannot complete until child uploads are complete.
 - Batch completion is idempotent.
 
-### Phase 7 鈥?Cleanup worker and lifecycle
+### Phase 7 - Cleanup worker and lifecycle
 
 Deliverables:
 
@@ -206,7 +206,7 @@ Acceptance criteria:
 - Worker can be run repeatedly safely.
 - Worker errors are logged and metriced.
 
-### Phase 8 鈥?Dataset validation and metadata extraction
+### Phase 8 - Dataset validation and metadata extraction
 
 Deliverables:
 
@@ -227,7 +227,7 @@ Acceptance criteria:
 - Dataset remains unavailable for download/processing while quarantined or rejected.
 - Retry validation is permission-checked and idempotent.
 
-### Phase 9 鈥?Outbox and optional notification delivery
+### Phase 9 - Outbox and optional notification delivery
 
 Deliverables:
 
@@ -244,7 +244,7 @@ Acceptance criteria:
 - Failed delivery never rolls back the completed domain action.
 - Presigned URL responses are never retained by MQTT.
 
-### Phase 10 鈥?Observability
+### Phase 10 - Observability
 
 Deliverables:
 
@@ -266,7 +266,7 @@ Acceptance criteria:
 - Outbox, validation, download URL, device, and purge paths emit metrics.
 - Alert thresholds are documented for storage errors, cleanup backlog, validation backlog, and outbox dead letters.
 
-### Phase 11 鈥?Failure injection and benchmark suite
+### Phase 11 - Failure injection and benchmark suite
 
 Deliverables:
 
@@ -292,7 +292,7 @@ Acceptance criteria:
 - Failure injection test suite passes locally.
 - Benchmark can upload at least a generated 512 MiB file against local MinIO.
 
-### Phase 12 鈥?Optional EMQX/MQTT control-plane adapter
+### Phase 12 - Optional EMQX/MQTT control-plane adapter
 
 Only implement after HTTP upload correctness, authorization, outbox, and device credentials are implemented.
 
@@ -316,7 +316,7 @@ Acceptance criteria:
 - Device cannot publish or subscribe outside its authorized topic namespace.
 - Disabled or revoked devices are rejected.
 
-### Phase 13 鈥?Optional Go uploader
+### Phase 13 - Optional Go uploader
 
 Deliverables:
 
@@ -331,7 +331,7 @@ Acceptance criteria:
 - Benchmark compares Python CLI and Go uploader.
 - Go implementation must not bypass the backend or use MinIO credentials.
 
-### Phase 14 鈥?Optional Go edge/control gateway
+### Phase 14 - Optional Go edge/control gateway
 
 Only implement if the core system is complete.
 
