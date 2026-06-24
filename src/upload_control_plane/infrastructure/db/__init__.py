@@ -10,6 +10,10 @@ from upload_control_plane.infrastructure.db.models import (
     Tag,
     TagCategory,
     Tenant,
+    UploadObject,
+    UploadPart,
+    UploadSession,
+    UploadTask,
 )
 from upload_control_plane.infrastructure.db.session import (
     build_engine,
@@ -29,6 +33,10 @@ __all__ = [
     "Tag",
     "TagCategory",
     "Tenant",
+    "UploadObject",
+    "UploadPart",
+    "UploadSession",
+    "UploadTask",
     "build_engine",
     "build_session_factory",
     "session_scope",
