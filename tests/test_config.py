@@ -13,9 +13,17 @@ def test_settings_defaults_match_t00_runtime_contract() -> None:
 
 def test_settings_parses_csv_environment_values() -> None:
     settings = Settings.model_validate(
-        {"s3_cors_allowed_origins": "http://localhost:5173,http://localhost:3000"}
+        {
+            "api_cors_allowed_headers": "authorization,content-type,idempotency-key",
+            "s3_cors_allowed_origins": "http://localhost:5173,http://localhost:3000",
+        }
     )
 
+    assert settings.api_cors_allowed_headers == [
+        "authorization",
+        "content-type",
+        "idempotency-key",
+    ]
     assert settings.s3_cors_allowed_origins == [
         "http://localhost:5173",
         "http://localhost:3000",

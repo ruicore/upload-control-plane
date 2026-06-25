@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from upload_control_plane.api.auth import AuthenticatedActor, require_api_key
@@ -23,6 +24,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="Upload Control Plane",
         version="0.1.0",
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=resolved_settings.api_cors_allowed_origins,
+        allow_credentials=False,
+        allow_methods=resolved_settings.api_cors_allowed_methods,
+        allow_headers=resolved_settings.api_cors_allowed_headers,
+        expose_headers=resolved_settings.api_cors_expose_headers,
     )
     app.middleware("http")(request_id_middleware)
     app.add_exception_handler(ApiError, api_error_handler)

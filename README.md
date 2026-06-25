@@ -116,6 +116,13 @@ abort, then uploads part bytes directly to MinIO/S3 through presigned URLs. It
 does not add backend routes, does not receive object-storage credentials, and
 does not persist presigned URLs.
 
+The local API allows browser CORS from `http://localhost:5173` through
+`API_CORS_ALLOWED_ORIGINS`, including the `Authorization`, `Content-Type`,
+`Idempotency-Key`, and `X-Request-ID` headers used by the manual uploader.
+The local MinIO service allows the same browser origin through
+`MINIO_API_CORS_ALLOW_ORIGIN` so direct browser `PUT` requests to presigned URLs
+can pass preflight without exposing MinIO credentials to the browser.
+
 On Windows hosts without GNU Make, use the equivalent PowerShell script:
 
 ```powershell
