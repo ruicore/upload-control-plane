@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from upload_control_plane.api.auth import get_db_session
 from upload_control_plane.api.request_context import REQUEST_ID_HEADER
 from upload_control_plane.api.upload_tasks import get_object_storage
-from upload_control_plane.config import get_settings
+from upload_control_plane.config import Settings, get_settings
 from upload_control_plane.domain.parts import DEFAULT_PART_SIZE, MIN_PART_SIZE
 from upload_control_plane.domain.storage import (
     AbortMultipartUploadRequest,
@@ -349,6 +349,94 @@ def test_upload_task_create_validation_happens_before_storage() -> None:
     assert storage.create_calls == []
 
 
+def test_upload_task_create_rejects_too_many_objects_before_storage() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = FakeObjectStorage()
+    settings = _settings_override(max_open_upload_tasks_per_project=1)
+    payload = _valid_payload(
+        objects=[
+            {
+                "dataset_name": "front-camera",
+                "object_name": "front_camera.hdf5",
+                "file_size_bytes": DEFAULT_PART_SIZE,
+            },
+            {
+                "dataset_name": "rear-camera",
+                "object_name": "rear_camera.hdf5",
+                "file_size_bytes": DEFAULT_PART_SIZE,
+            },
+        ]
+    )
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, settings)
+
+    client = _client(session_factory, storage=storage, settings=settings)
+    response = client.post(
+        f"/v1/projects/{seed.project_id}/upload-tasks",
+        headers={
+            **_auth_headers("req-upload-too-many-objects"),
+            "Idempotency-Key": "idem-quota-too-many-objects",
+        },
+        json=payload,
+    )
+
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "upload_task.too_many_objects"
+    assert storage.create_calls == []
+
+
+def test_upload_task_create_rejects_open_task_quota_before_storage() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = FakeObjectStorage()
+    settings = _settings_override(max_open_upload_tasks_per_project=1)
+    existing_task_idempotency_key = "idem-quota-existing-open-task"
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, settings)
+        _insert_open_upload_task(session, idempotency_key=existing_task_idempotency_key)
+
+    try:
+        client = _client(session_factory, storage=storage, settings=settings)
+        response = client.post(
+            f"/v1/projects/{seed.project_id}/upload-tasks",
+            headers={
+                **_auth_headers("req-upload-open-quota"),
+                "Idempotency-Key": "idem-quota-open",
+            },
+            json=_valid_payload(),
+        )
+
+        assert response.status_code == 429
+        assert response.json()["error"]["code"] == "quota.open_upload_tasks_exceeded"
+        assert storage.create_calls == []
+    finally:
+        _delete_upload_artifacts(session_factory, existing_task_idempotency_key)
+
+
+def test_upload_task_create_rejects_project_byte_quota_before_storage() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = FakeObjectStorage()
+    settings = _settings_override(max_bytes_per_project=DEFAULT_PART_SIZE - 1)
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, settings)
+
+    client = _client(session_factory, storage=storage, settings=settings)
+    response = client.post(
+        f"/v1/projects/{seed.project_id}/upload-tasks",
+        headers={
+            **_auth_headers("req-upload-project-bytes"),
+            "Idempotency-Key": "idem-quota-project-bytes",
+        },
+        json=_valid_payload(),
+    )
+
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "quota.project_bytes_exceeded"
+    assert storage.create_calls == []
+
+
 def _invalid_payload(case: str) -> dict[str, object]:
     if case == "empty_objects":
         return {**_valid_payload(), "objects": []}
@@ -453,6 +541,7 @@ def _client(
     session_factory: sessionmaker[Session],
     *,
     storage: FakeObjectStorage | None = None,
+    settings: Settings | None = None,
 ) -> TestClient:
     app = create_app()
 
@@ -461,6 +550,8 @@ def _client(
             yield session
 
     app.dependency_overrides[get_db_session] = override_session
+    if settings is not None:
+        app.dependency_overrides[get_settings] = lambda: settings
     if storage is not None:
         app.dependency_overrides[get_object_storage] = lambda: storage
     return TestClient(app)
@@ -539,6 +630,37 @@ def _delete_test_projects(session_factory: sessionmaker[Session], *project_ids: 
 def _delete_test_grants(session_factory: sessionmaker[Session], *grant_ids: uuid.UUID) -> None:
     with _session_scope(session_factory) as session:
         session.execute(delete(PermissionGrant).where(PermissionGrant.id.in_(grant_ids)))
+
+
+def _settings_override(**values: object) -> Settings:
+    return get_settings().model_copy(update=values)
+
+
+def _insert_open_upload_task(session: Session, *, idempotency_key: str) -> None:
+    seed = build_dev_seed_result()
+    now = datetime.now(UTC)
+    session.add(
+        UploadTask(
+            id=uuid.uuid4(),
+            tenant_id=seed.tenant_id,
+            project_id=seed.project_id,
+            storage_policy_id=seed.storage_policy_id,
+            status="PENDING",
+            task_initiator="cli",
+            source_device_id=None,
+            source_device_code=None,
+            object_count=1,
+            completed_object_count=0,
+            failed_object_count=0,
+            total_size_bytes=DEFAULT_PART_SIZE,
+            uploaded_size_bytes=0,
+            idempotency_key=idempotency_key,
+            metadata_={"seed": "quota-test"},
+            created_by=seed.api_key_id,
+            created_at=now,
+            updated_at=now,
+        )
+    )
 
 
 def _delete_upload_artifacts(session_factory: sessionmaker[Session], idempotency_key: str) -> None:
