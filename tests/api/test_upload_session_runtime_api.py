@@ -33,6 +33,7 @@ from upload_control_plane.domain.storage import (
     PresignedPartUrl,
     PresignUploadPartRequest,
     StorageCapabilities,
+    StorageChecksumMismatchError,
 )
 from upload_control_plane.infrastructure.db.models import (
     AuditEvent,
@@ -182,6 +183,48 @@ def test_presign_rejects_paused_session() -> None:
         _delete_upload_artifacts(session_factory, idempotency_key)
 
 
+def test_presign_expiry_is_bounded_and_expired_sessions_are_gone() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = RuntimeFakeObjectStorage()
+    idempotency_key = "idem-runtime-expiry-bounds"
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+
+    try:
+        client = _client(session_factory, storage=storage)
+        created = _create_upload_task(client, seed.project_id, idempotency_key)
+        session_id = uuid.UUID(_created_object(created)["session_id"])
+
+        bounded = client.post(
+            f"/v1/uploads/{session_id}/parts/presign",
+            headers=_auth_headers("req-presign-bounded"),
+            json={"part_numbers": [1], "expires_in_seconds": 999_999},
+        )
+        assert bounded.status_code == 200
+        assert storage.presign_calls == [
+            (_created_object(created)["bucket"], 1, get_settings().max_presign_expiry_seconds)
+        ]
+
+        with _session_scope(session_factory) as session:
+            upload_session = session.get(UploadSession, session_id)
+            assert upload_session is not None
+            upload_session.status = "EXPIRED"
+            upload_session.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+
+        expired = client.post(
+            f"/v1/uploads/{session_id}/parts/presign",
+            headers=_auth_headers("req-presign-expired"),
+            json={"part_numbers": [1]},
+        )
+        assert expired.status_code == 409
+        assert expired.json()["error"]["code"] == "upload.invalid_state"
+        assert expired.json()["error"]["details"]["status"] == "EXPIRED"
+        assert len(storage.presign_calls) == 1
+    finally:
+        _delete_upload_artifacts(session_factory, idempotency_key)
+
+
 def test_runtime_re_evaluates_current_permissions() -> None:
     session_factory = _db_session_factory_or_skip()
     seed = build_dev_seed_result()
@@ -226,6 +269,53 @@ def test_runtime_re_evaluates_current_permissions() -> None:
     finally:
         _delete_upload_artifacts(session_factory, idempotency_key)
         _delete_test_grants(session_factory, *deny_grants)
+
+
+def test_complete_re_evaluates_current_permissions_after_part_upload() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = RuntimeFakeObjectStorage()
+    storage.listed_parts = (
+        ListedPart(part_number=1, etag='"storage-etag-1"', size_bytes=DEFAULT_PART_SIZE),
+    )
+    idempotency_key = "idem-runtime-complete-permission-revoked"
+    deny_grant = dev_seed_uuid("test-grant:runtime-deny-upload-complete")
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+
+    try:
+        client = _client(session_factory, storage=storage)
+        created = _create_upload_task(client, seed.project_id, idempotency_key)
+        session_id = uuid.UUID(_created_object(created)["session_id"])
+        with _session_scope(session_factory) as session:
+            _upsert_grant(
+                session,
+                grant_id=deny_grant,
+                resource_id=uuid.UUID(_created_object(created)["dataset_id"]),
+                resource_type="dataset",
+                permission_code="upload.complete",
+                effect="DENY",
+            )
+
+        response = client.post(
+            f"/v1/uploads/{session_id}/complete",
+            headers={
+                **_auth_headers("req-complete-permission-revoked"),
+                "Idempotency-Key": "idem-complete-permission-revoked",
+            },
+            json={},
+        )
+
+        assert response.status_code == 403
+        assert response.json()["error"]["code"] == "authorization.permission_denied"
+        assert storage.complete_calls == []
+    finally:
+        _delete_upload_artifacts(
+            session_factory,
+            idempotency_key,
+            "idem-complete-permission-revoked",
+        )
+        _delete_test_grants(session_factory, deny_grant)
 
 
 def test_runtime_session_tenant_isolation_returns_not_found_before_permission_check() -> None:
@@ -471,6 +561,63 @@ def test_complete_succeeds_from_storage_parts_without_db_ack_and_is_idempotent()
             assert dataset.object_size_bytes == DEFAULT_PART_SIZE
     finally:
         _delete_upload_artifacts(session_factory, idempotency_key, "idem-complete")
+
+
+def test_storage_native_checksum_mismatch_does_not_mark_dataset_ready() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = RuntimeFakeObjectStorage()
+    storage.listed_parts = (
+        ListedPart(
+            part_number=1,
+            etag='"storage-etag-1"',
+            size_bytes=DEFAULT_PART_SIZE,
+            checksum={"sha256": "a" * 64},
+        ),
+    )
+    storage.complete_error = StorageChecksumMismatchError(
+        "BadDigest",
+        operation="complete_multipart_upload",
+        provider_code="BadDigest",
+    )
+    idempotency_key = "idem-runtime-checksum-mismatch"
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+
+    try:
+        client = _client(session_factory, storage=storage)
+        created = _create_upload_task(client, seed.project_id, idempotency_key)
+        created_object = _created_object(created)
+        session_id = uuid.UUID(created_object["session_id"])
+        dataset_id = uuid.UUID(created_object["dataset_id"])
+
+        response = client.post(
+            f"/v1/uploads/{session_id}/complete",
+            headers={
+                **_auth_headers("req-complete-checksum-mismatch"),
+                "Idempotency-Key": "idem-complete-checksum-mismatch",
+            },
+            json={"checksum_sha256": "b" * 64},
+        )
+
+        assert response.status_code == 502
+        assert response.json()["error"]["code"] == "storage.complete_failed"
+        assert response.json()["error"]["details"]["provider_code"] == "BadDigest"
+        with _session_scope(session_factory) as session:
+            upload_session = session.get(UploadSession, session_id)
+            dataset = session.get(Dataset, dataset_id)
+            assert upload_session is not None
+            assert dataset is not None
+            assert upload_session.status == "INITIATED"
+            assert upload_session.last_error_code == "storage.complete_failed"
+            assert dataset.status == "UPLOAD_PENDING"
+            assert dataset.object_etag is None
+    finally:
+        _delete_upload_artifacts(
+            session_factory,
+            idempotency_key,
+            "idem-complete-checksum-mismatch",
+        )
 
 
 def test_abort_is_idempotent_and_completed_sessions_are_not_aborted() -> None:
@@ -724,6 +871,7 @@ def _upsert_grant(
     grant_id: uuid.UUID,
     resource_id: uuid.UUID,
     permission_code: str,
+    resource_type: str = "project",
     effect: str = "ALLOW",
 ) -> None:
     seed = build_dev_seed_result()
@@ -734,7 +882,7 @@ def _upsert_grant(
     grant.tenant_id = seed.tenant_id
     grant.subject_type = "api_key"
     grant.subject_id = seed.api_key_id
-    grant.resource_type = "project"
+    grant.resource_type = resource_type
     grant.resource_id = resource_id
     grant.permission_code = permission_code
     grant.effect = effect
@@ -808,6 +956,7 @@ class RuntimeFakeObjectStorage:
         self.complete_calls: list[CompleteMultipartUploadRequest] = []
         self.abort_calls: list[AbortMultipartUploadRequest] = []
         self.listed_parts: tuple[ListedPart, ...] = ()
+        self.complete_error: Exception | None = None
 
     @property
     def capabilities(self) -> StorageCapabilities:
@@ -838,6 +987,8 @@ class RuntimeFakeObjectStorage:
 
     def complete_multipart_upload(self, request: CompleteMultipartUploadRequest) -> CompletedObject:
         self.complete_calls.append(request)
+        if self.complete_error is not None:
+            raise self.complete_error
         return CompletedObject(
             bucket=request.bucket,
             object_key=request.object_key,
