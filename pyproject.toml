@@ -34,6 +34,7 @@ dependencies = [
 
 [project.scripts]
 uploadctl = "upload_control_plane.cli.main:app"
+upload-worker = "upload_control_plane.worker.main:app"
 
 [dependency-groups]
 dev = [
