@@ -16,10 +16,10 @@ def test_alembic_config_points_at_migrations_directory() -> None:
     assert config.get_main_option("sqlalchemy.url") == Settings().database_url
 
 
-def test_alembic_has_records_schema_head_revision() -> None:
+def test_alembic_has_device_credentials_schema_head_revision() -> None:
     script = ScriptDirectory.from_config(build_alembic_config(Settings()))
 
-    assert script.get_current_head() == "20260624_0005"
+    assert script.get_current_head() == "20260625_0006"
 
 
 def test_migration_target_metadata_has_records_schema_tables() -> None:
@@ -29,6 +29,7 @@ def test_migration_target_metadata_has_records_schema_tables() -> None:
         "dataset_validation_results",
         "dataset_tags",
         "datasets",
+        "device_credentials",
         "devices",
         "idempotency_records",
         "outbox_events",

@@ -33,8 +33,15 @@ class AuthorizationTarget:
 
 
 def actor_subjects(actor: AuthenticatedActor) -> tuple[SubjectRef, ...]:
-    subjects = [SubjectRef(SubjectType.API_KEY, actor.api_key_id)]
-    if actor.subject_id != actor.api_key_id:
+    if actor.actor_type == "device":
+        if actor.device_id is None:
+            return ()
+        return (SubjectRef(SubjectType.DEVICE, actor.device_id),)
+
+    subjects: list[SubjectRef] = []
+    if actor.api_key_id is not None:
+        subjects.append(SubjectRef(SubjectType.API_KEY, actor.api_key_id))
+    if actor.api_key_id is None or actor.subject_id != actor.api_key_id:
         subjects.append(SubjectRef(SubjectType.USER, actor.subject_id))
     return tuple(subjects)
 

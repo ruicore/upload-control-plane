@@ -1046,7 +1046,7 @@ class UploadSessionRuntimeService:
                 upload_object_id=upload_session.upload_object_id,
                 session_id=upload_session.id,
                 event_type=event_type,
-                actor_type="api_key",
+                actor_type=actor.actor_type,
                 actor_id=str(actor.subject_id),
                 request_id=request_id,
                 payload=payload,

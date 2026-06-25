@@ -5,6 +5,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from upload_control_plane.api.auth import AuthenticatedActor, require_api_key
 from upload_control_plane.api.datasets import router as datasets_router
+from upload_control_plane.api.devices import router as devices_router
 from upload_control_plane.api.errors import (
     ApiError,
     api_error_handler,
@@ -40,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.include_router(projects_router)
     app.include_router(datasets_router)
+    app.include_router(devices_router)
     app.include_router(upload_tasks_router)
     app.include_router(upload_sessions_router)
 
@@ -55,8 +57,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {
             "authenticated": True,
             "tenant_id": str(actor.tenant_id),
-            "api_key_id": str(actor.api_key_id),
+            "api_key_id": str(actor.api_key_id) if actor.api_key_id is not None else None,
             "subject_id": str(actor.subject_id),
+            "actor_type": actor.actor_type,
             "scopes": list(actor.scopes),
         }
 

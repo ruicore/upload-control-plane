@@ -242,6 +242,44 @@ class Device(Base):
     )
 
 
+class DeviceCredential(Base):
+    __tablename__ = "device_credentials"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "credential_hash"),
+        UniqueConstraint("device_id", "credential_version"),
+        Index("idx_device_credentials_device", "device_id", "revoked_at", "expires_at"),
+        Index("idx_device_credentials_hash", "tenant_id", "credential_hash"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id"),
+        nullable=False,
+    )
+    device_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("devices.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    credential_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    credential_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    issued_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    metadata_: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+    )
+
+
 class Dataset(Base):
     __tablename__ = "datasets"
     __table_args__ = (
