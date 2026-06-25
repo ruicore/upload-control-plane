@@ -81,6 +81,7 @@ def build_dev_seed_result() -> DevSeedResult:
             "device.disable",
             "device.credentials.rotate",
             "device.credentials.revoke",
+            "audit.view",
         ),
     )
 
