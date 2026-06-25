@@ -99,6 +99,9 @@ class Settings(BaseSettings):
     enable_outbox_dispatcher: bool = True
     outbox_max_attempts: int = 12
     outbox_batch_size: int = 100
+    worker_poll_interval_seconds: int = 300
+    worker_batch_size: int = 100
+    expired_session_abort_grace_seconds: int = 0
     validation_queue_max_depth: int = 1_000
     backpressure_storage_error_rate_threshold: float = 0.05
     backpressure_storage_p95_latency_ms: int = 5_000

@@ -30,7 +30,7 @@ services:
   worker:
     build:
       context: .
-    command: ["uv", "run", "--no-sync", "python", "-m", "upload_control_plane.worker.main"]
+    command: ["uv", "run", "--no-sync", "python", "-m", "upload_control_plane.worker.main", "run"]
     environment:
       APP_ENV: local
       APP_NAME: upload-control-plane
