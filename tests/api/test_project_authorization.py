@@ -70,12 +70,6 @@ def test_project_detail_returns_deterministic_effective_permissions_with_deny_wi
             permission_code="upload.create",
             effect="DENY",
         )
-        _upsert_grant(
-            session,
-            grant_id=dev_seed_uuid("test-grant:seed-allow-dataset-download"),
-            resource_id=seed.project_id,
-            permission_code="dataset.download",
-        )
 
     try:
         client = _client(session_factory)
@@ -95,7 +89,6 @@ def test_project_detail_returns_deterministic_effective_permissions_with_deny_wi
         _delete_test_grants(
             session_factory,
             dev_seed_uuid("test-grant:seed-deny-upload-create"),
-            dev_seed_uuid("test-grant:seed-allow-dataset-download"),
         )
 
 

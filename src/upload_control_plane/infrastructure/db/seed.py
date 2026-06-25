@@ -57,12 +57,22 @@ def build_dev_seed_result() -> DevSeedResult:
         api_key_hash=hash_dev_secret(DEV_API_KEY_VALUE),
         permission_codes=(
             "project.view",
+            "dataset.view",
+            "dataset.update",
             "dataset.upload",
+            "dataset.download",
+            "dataset.delete",
+            "dataset.archive",
+            "dataset.restore",
+            "dataset.purge",
             "upload.create",
             "upload.pause",
             "upload.resume",
             "upload.complete",
             "upload.abort",
+            "tag.create",
+            "tag.update",
+            "tag.delete",
         ),
     )
 

@@ -11,12 +11,15 @@ from upload_control_plane.domain.storage import (
     CompletionPart,
     CreateMultipartUploadRequest,
     CreateMultipartUploadResult,
+    DeleteObjectRequest,
     HeadObjectRequest,
     HeadObjectResult,
     ListedPart,
     ListedPartsPage,
     ListPartsRequest,
     ObjectStorage,
+    PresignDownloadObjectRequest,
+    PresignedDownloadUrl,
     PresignedPartUrl,
     PresignUploadPartRequest,
     StorageCapabilities,
@@ -190,6 +193,18 @@ def test_object_storage_protocol_accepts_structural_implementation() -> None:
                 size_bytes=5,
             )
 
+        def presign_download_object(
+            self,
+            request: PresignDownloadObjectRequest,
+        ) -> PresignedDownloadUrl:
+            return PresignedDownloadUrl(
+                url=f"http://localhost:19000/{request.bucket}/{request.object_key}?download=1",
+                expires_at=datetime.now(tz=UTC) + timedelta(minutes=15),
+            )
+
+        def delete_object(self, request: DeleteObjectRequest) -> None:
+            assert request.object_key == OBJECT_KEY
+
     storage: ObjectStorage = FakeStorage()
 
     assert isinstance(storage, ObjectStorage)
@@ -209,3 +224,8 @@ def test_object_storage_protocol_accepts_structural_implementation() -> None:
         ),
     )
     assert completed.etag == '"final"'
+    download = storage.presign_download_object(
+        PresignDownloadObjectRequest(bucket=BUCKET, object_key=OBJECT_KEY, expires_in_seconds=900)
+    )
+    storage.delete_object(DeleteObjectRequest(bucket=BUCKET, object_key=OBJECT_KEY))
+    assert download.method == "GET"

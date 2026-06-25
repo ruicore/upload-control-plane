@@ -172,6 +172,30 @@ class PresignedPartUrl:
 
 
 @dataclass(frozen=True, slots=True)
+class PresignDownloadObjectRequest:
+    bucket: str
+    object_key: str
+    expires_in_seconds: int
+
+    def __post_init__(self) -> None:
+        _require_non_empty(self.bucket, "bucket")
+        _require_non_empty(self.object_key, "object_key")
+        _require_positive(self.expires_in_seconds, "expires_in_seconds")
+
+
+@dataclass(frozen=True, slots=True)
+class PresignedDownloadUrl:
+    url: str
+    expires_at: datetime
+    method: str = "GET"
+
+    def __post_init__(self) -> None:
+        _require_non_empty(self.url, "url")
+        _require_non_empty(self.method, "method")
+        _require_aware_datetime(self.expires_at, "expires_at")
+
+
+@dataclass(frozen=True, slots=True)
 class ListedPart:
     part_number: int
     etag: str
@@ -324,6 +348,19 @@ class HeadObjectRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class DeleteObjectRequest:
+    bucket: str
+    object_key: str
+    version_id: str | None = None
+
+    def __post_init__(self) -> None:
+        _require_non_empty(self.bucket, "bucket")
+        _require_non_empty(self.object_key, "object_key")
+        if self.version_id is not None:
+            _require_non_empty(self.version_id, "version_id")
+
+
+@dataclass(frozen=True, slots=True)
 class AbortMultipartUploadRequest:
     bucket: str
     object_key: str
@@ -361,3 +398,12 @@ class ObjectStorage(Protocol):
 
     def head_object(self, request: HeadObjectRequest) -> HeadObjectResult:
         """Read metadata for a completed object."""
+
+    def presign_download_object(
+        self,
+        request: PresignDownloadObjectRequest,
+    ) -> PresignedDownloadUrl:
+        """Create a scoped GET URL for a completed object."""
+
+    def delete_object(self, request: DeleteObjectRequest) -> None:
+        """Delete a completed object after application lifecycle policy allows purge."""
