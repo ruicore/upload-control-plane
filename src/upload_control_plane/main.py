@@ -13,16 +13,19 @@ from upload_control_plane.api.errors import (
     validation_error_handler,
 )
 from upload_control_plane.api.middleware import request_id_middleware
+from upload_control_plane.api.observability import router as observability_router
 from upload_control_plane.api.projects import router as projects_router
 from upload_control_plane.api.upload_sessions import router as upload_sessions_router
 from upload_control_plane.api.upload_tasks import router as upload_tasks_router
 from upload_control_plane.config import Settings, get_settings
+from upload_control_plane.observability import configure_logging
 
 AUTH_ACTOR = Depends(require_api_key)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or get_settings()
+    configure_logging(level=resolved_settings.log_level, app_env=resolved_settings.app_env)
     app = FastAPI(
         title="Upload Control Plane",
         version="0.1.0",
@@ -44,6 +47,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(devices_router)
     app.include_router(upload_tasks_router)
     app.include_router(upload_sessions_router)
+    app.include_router(observability_router)
 
     @app.get("/healthz", tags=["health"])
     def healthz() -> dict[str, str]:

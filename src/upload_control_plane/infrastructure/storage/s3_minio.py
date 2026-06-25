@@ -34,6 +34,7 @@ from upload_control_plane.domain.storage import (
     StorageOperationError,
     StoragePreconditionFailedError,
 )
+from upload_control_plane.observability import record_storage_operation, storage_operation_started
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -279,11 +280,21 @@ class S3ObjectStorage:
         self._call("delete_object", lambda: self._internal_client.delete_object(**kwargs))
 
     def _call[T](self, operation: str, call: Callable[[], T]) -> T:
+        started_at = storage_operation_started()
         try:
-            return call()
+            result = call()
+            record_storage_operation(operation, started_at)
+            return result
         except ClientError as exc:
-            raise _map_client_error(operation, exc) from exc
+            mapped = _map_client_error(operation, exc)
+            record_storage_operation(
+                operation,
+                started_at,
+                error_code=mapped.provider_code or mapped.__class__.__name__,
+            )
+            raise mapped from exc
         except BotoCoreError as exc:
+            record_storage_operation(operation, started_at, error_code=exc.__class__.__name__)
             raise StorageOperationError(
                 f"storage operation failed: {operation}",
                 operation=operation,
