@@ -12,8 +12,10 @@ from upload_control_plane.domain.storage import (
     CompleteMultipartUploadRequest,
     CompletionPart,
     CreateMultipartUploadRequest,
+    DeleteObjectRequest,
     HeadObjectRequest,
     ListPartsRequest,
+    PresignDownloadObjectRequest,
     PresignUploadPartRequest,
     StorageAccessDeniedError,
     StorageConflictError,
@@ -65,6 +67,10 @@ class FakeS3Client:
 
     def abort_multipart_upload(self, **kwargs: Any) -> dict[str, Any]:
         self._record("abort_multipart_upload", kwargs)
+        return {}
+
+    def delete_object(self, **kwargs: Any) -> dict[str, Any]:
+        self._record("delete_object", kwargs)
         return {}
 
     def head_object(self, **kwargs: Any) -> dict[str, Any]:
@@ -150,9 +156,16 @@ def test_s3_storage_maps_create_presign_list_complete_abort_and_head() -> None:
         )
     )
     head = storage.head_object(HeadObjectRequest(bucket=BUCKET, object_key=OBJECT_KEY))
+    download = storage.presign_download_object(
+        PresignDownloadObjectRequest(bucket=BUCKET, object_key=OBJECT_KEY, expires_in_seconds=300)
+    )
+    storage.delete_object(
+        DeleteObjectRequest(bucket=BUCKET, object_key=OBJECT_KEY, version_id="v1")
+    )
 
     assert created.upload_id == UPLOAD_ID
     assert presigned.url.startswith("http://localhost:19000/")
+    assert download.method == "GET"
     assert presigned.required_headers["x-amz-checksum-sha256"] == "abc"
     assert [part.part_number for part in page.parts] == [1, 2]
     assert page.is_truncated is True
@@ -171,6 +184,12 @@ def test_s3_storage_maps_create_presign_list_complete_abort_and_head() -> None:
     assert internal_client.calls[2][1]["IfNoneMatch"] == "*"
     assert presign_client.calls[0][1]["ClientMethod"] == "upload_part"
     assert presign_client.calls[0][1]["HttpMethod"] == "PUT"
+    assert presign_client.calls[1][1]["ClientMethod"] == "get_object"
+    assert presign_client.calls[1][1]["HttpMethod"] == "GET"
+    assert internal_client.calls[-1] == (
+        "delete_object",
+        {"Bucket": BUCKET, "Key": OBJECT_KEY, "VersionId": "v1"},
+    )
 
 
 @pytest.mark.parametrize(

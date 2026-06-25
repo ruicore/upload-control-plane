@@ -15,11 +15,14 @@ from upload_control_plane.domain.storage import (
     CompleteMultipartUploadRequest,
     CreateMultipartUploadRequest,
     CreateMultipartUploadResult,
+    DeleteObjectRequest,
     HeadObjectRequest,
     HeadObjectResult,
     ListedPart,
     ListedPartsPage,
     ListPartsRequest,
+    PresignDownloadObjectRequest,
+    PresignedDownloadUrl,
     PresignedPartUrl,
     PresignUploadPartRequest,
     StorageAccessDeniedError,
@@ -176,6 +179,24 @@ class S3ObjectStorage:
             required_headers=request.required_headers,
         )
 
+    def presign_download_object(
+        self,
+        request: PresignDownloadObjectRequest,
+    ) -> PresignedDownloadUrl:
+        url = self._call(
+            "presign_download_object",
+            lambda: self._presign_client.generate_presigned_url(
+                ClientMethod="get_object",
+                Params={"Bucket": request.bucket, "Key": request.object_key},
+                ExpiresIn=request.expires_in_seconds,
+                HttpMethod="GET",
+            ),
+        )
+        return PresignedDownloadUrl(
+            url=url,
+            expires_at=self._now() + timedelta(seconds=request.expires_in_seconds),
+        )
+
     def list_parts(self, request: ListPartsRequest) -> ListedPartsPage:
         kwargs: dict[str, Any] = {
             "Bucket": request.bucket,
@@ -250,6 +271,12 @@ class S3ObjectStorage:
             object_lock=_object_lock_from_response(response),
             replication=_replication_from_response(response),
         )
+
+    def delete_object(self, request: DeleteObjectRequest) -> None:
+        kwargs: dict[str, Any] = {"Bucket": request.bucket, "Key": request.object_key}
+        if request.version_id is not None:
+            kwargs["VersionId"] = request.version_id
+        self._call("delete_object", lambda: self._internal_client.delete_object(**kwargs))
 
     def _call[T](self, operation: str, call: Callable[[], T]) -> T:
         try:
