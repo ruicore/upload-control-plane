@@ -119,6 +119,9 @@ does not persist presigned URLs.
 The local API allows browser CORS from `http://localhost:5173` through
 `API_CORS_ALLOWED_ORIGINS`, including the `Authorization`, `Content-Type`,
 `Idempotency-Key`, and `X-Request-ID` headers used by the manual uploader.
+API CORS list environment overrides should use JSON arrays, for example
+`API_CORS_ALLOWED_ORIGINS=["http://localhost:5173"]`, because these values are
+loaded by `pydantic-settings` as `list[str]` fields at process startup.
 The local MinIO service allows the same browser origin through
 `MINIO_API_CORS_ALLOW_ORIGIN` so direct browser `PUT` requests to presigned URLs
 can pass preflight without exposing MinIO credentials to the browser.
