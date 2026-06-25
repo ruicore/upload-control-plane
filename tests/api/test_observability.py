@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import socket
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -60,6 +62,14 @@ from upload_control_plane.infrastructure.db.seed import (
 from upload_control_plane.infrastructure.db.session import build_engine, build_session_factory
 from upload_control_plane.main import create_app
 
+_PRD_METRICS_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "docs"
+    / "prd"
+    / "industrial-multipart-upload-control-plane"
+    / "12-observability-testing-failure-modes.md"
+)
+
 
 def test_metrics_returns_prometheus_text_and_expected_metric_names() -> None:
     session_factory = _db_session_factory_or_skip()
@@ -90,13 +100,32 @@ def test_metrics_returns_prometheus_text_and_expected_metric_names() -> None:
         assert "api_request_duration_seconds_bucket" in body
         assert "storage_operation_duration_seconds_bucket" in body
         assert "upload_sessions_by_status" in body
+        assert "upload_sessions_created_total" in body
+        assert "upload_presign_requests_total" in body
+        assert "dataset_created_total" in body
+        assert "upload_tasks_created_total" in body
+        assert "device_registered_total" in body
         assert "validation_queue_depth" in body
         assert "cleanup_expired_sessions_backlog" in body
         assert "outbox_events_pending" in body
+        assert "outbox_events_delivered_total" in body
         assert "outbox_events_dead_lettered" in body
     finally:
         with _session_scope(session_factory) as session:
             session.execute(delete(OutboxEvent).where(OutboxEvent.id == dead_letter_id))
+
+
+def test_metrics_covers_complete_prd_required_metric_family_list() -> None:
+    session_factory = _db_session_factory_or_skip()
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+
+    response = _client(session_factory).get("/metrics")
+
+    assert response.status_code == 200
+    rendered_families = _rendered_metric_families(response.text)
+    required_families = _prd_required_metric_families()
+    assert sorted(required_families - rendered_families) == []
 
 
 def test_request_logging_carries_request_and_path_context_without_query(
@@ -291,6 +320,25 @@ def _auth_headers(request_id: str) -> dict[str, str]:
         "Authorization": f"Bearer {DEV_API_KEY_VALUE}",
         REQUEST_ID_HEADER: request_id,
     }
+
+
+def _prd_required_metric_families() -> set[str]:
+    prd = _PRD_METRICS_PATH.read_text(encoding="utf-8")
+    block = prd.split("Required metrics:", maxsplit=1)[1].split("```", maxsplit=2)[1]
+    return {
+        metric.split("{", maxsplit=1)[0]
+        for metric in block.splitlines()
+        if metric and not metric.isspace() and metric != "text"
+    }
+
+
+def _rendered_metric_families(body: str) -> set[str]:
+    families: set[str] = set()
+    for line in body.splitlines():
+        match = re.match(r"# TYPE (?P<name>[a-zA-Z_:][a-zA-Z0-9_:]*) ", line)
+        if match:
+            families.add(match.group("name"))
+    return families
 
 
 @contextmanager
