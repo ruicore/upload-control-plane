@@ -55,7 +55,15 @@ def build_dev_seed_result() -> DevSeedResult:
         device_id=dev_seed_uuid("device:robot-17"),
         api_key_value=DEV_API_KEY_VALUE,
         api_key_hash=hash_dev_secret(DEV_API_KEY_VALUE),
-        permission_codes=("project.view", "dataset.upload", "upload.create"),
+        permission_codes=(
+            "project.view",
+            "dataset.upload",
+            "upload.create",
+            "upload.pause",
+            "upload.resume",
+            "upload.complete",
+            "upload.abort",
+        ),
     )
 
 

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Header, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy.orm import Session
 
@@ -13,11 +13,15 @@ from upload_control_plane.api.authorization import AuthorizationService
 from upload_control_plane.api.request_context import get_request_id
 from upload_control_plane.api.upload_tasks import OBJECT_STORAGE, SETTINGS_DEPENDENCY
 from upload_control_plane.application.upload_sessions import (
+    AbortUploadSessionResult,
     AckUploadedPartsInput,
     AckUploadedPartsResult,
+    CompleteUploadSessionResult,
     ListRuntimePartsResult,
     PartListSource,
+    PauseUploadSessionResult,
     PresignRuntimePartsResult,
+    ResumeUploadSessionResult,
     RuntimeUploadSession,
     UploadSessionRuntimeService,
 )
@@ -28,6 +32,7 @@ from upload_control_plane.infrastructure.db.models import UploadSession
 
 router = APIRouter(prefix="/v1/uploads", tags=["upload-sessions"])
 AUTH_ACTOR = Depends(require_api_key)
+IDEMPOTENCY_KEY_HEADER = Header(default=None, alias="Idempotency-Key")
 
 
 class UploadSessionStatusResponse(BaseModel):
@@ -43,8 +48,8 @@ class UploadSessionStatusResponse(BaseModel):
     part_count: int
     uploaded_part_count: int
     missing_part_count: int
-    paused_at: None = None
-    pause_reason: None = None
+    paused_at: datetime | None = None
+    pause_reason: str | None = None
     expires_at: datetime
     created_at: datetime
     updated_at: datetime
@@ -166,6 +171,76 @@ class ListPartsResponse(BaseModel):
     parts: list[RuntimePartResponse]
 
 
+class PauseUploadSessionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str | None = Field(default=None, max_length=256)
+    client_inflight_behavior: Literal["allow_finish", "cancel_inflight"] | None = None
+
+
+class PauseUploadSessionResponse(BaseModel):
+    session_id: uuid.UUID
+    status: Literal["PAUSED"]
+    paused_at: datetime
+    pause_reason: str | None
+
+
+class ResumeUploadSessionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str | None = Field(default=None, max_length=256)
+
+
+class ResumeUploadSessionResponse(BaseModel):
+    session_id: uuid.UUID
+    status: Literal["UPLOADING"]
+    resumed_at: datetime
+
+
+class CompleteReportedPartRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    part_number: int = Field(ge=1)
+    etag: str = Field(min_length=1)
+
+
+class CompleteUploadSessionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    client_reported_parts: list[CompleteReportedPartRequest] | None = None
+    checksum_sha256: str | None = Field(default=None, min_length=64, max_length=64)
+
+    @field_validator("checksum_sha256")
+    @classmethod
+    def validate_checksum_sha256(cls, value: str | None) -> str | None:
+        hex_characters = "0123456789abcdefABCDEF"
+        if value is not None and any(character not in hex_characters for character in value):
+            raise ValueError("checksum_sha256 must be a hex string")
+        return value
+
+
+class CompleteUploadSessionResponse(BaseModel):
+    session_id: uuid.UUID
+    status: Literal["COMPLETED"]
+    bucket: str
+    object_key: str
+    object_size_bytes: int | None
+    etag: str | None
+    completed_at: datetime
+
+
+class AbortUploadSessionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str | None = Field(default=None, max_length=256)
+
+
+class AbortUploadSessionResponse(BaseModel):
+    session_id: uuid.UUID
+    status: Literal["ABORTED"]
+    aborted_at: datetime
+
+
 @router.get("/{session_id}", response_model=UploadSessionStatusResponse)
 def get_upload_session(
     session_id: uuid.UUID,
@@ -284,6 +359,135 @@ def list_parts(
     return _list_parts_response(result)
 
 
+@router.post("/{session_id}/pause", response_model=PauseUploadSessionResponse)
+def pause_upload_session(
+    session_id: uuid.UUID,
+    request: PauseUploadSessionRequest,
+    fastapi_request: Request,
+    actor: AuthenticatedActor = AUTH_ACTOR,
+    session: Session = DB_SESSION,
+    settings: Settings = SETTINGS_DEPENDENCY,
+    storage: ObjectStorage = OBJECT_STORAGE,
+    idempotency_key: str | None = IDEMPOTENCY_KEY_HEADER,
+) -> PauseUploadSessionResponse:
+    upload_session = _load_owned_session(session, actor, session_id)
+    _require_runtime_permission(
+        session,
+        actor=actor,
+        upload_session=upload_session,
+        permission_codes=("upload.pause",),
+    )
+    service = UploadSessionRuntimeService(session=session, storage=storage, settings=settings)
+    result = service.pause_upload_session(
+        tenant_id=actor.tenant_id,
+        actor=actor,
+        session_id=session_id,
+        request_path=fastapi_request.url.path,
+        request_body=request.model_dump(mode="json"),
+        idempotency_key=idempotency_key,
+        request_id=get_request_id(),
+        reason=request.reason,
+        client_inflight_behavior=request.client_inflight_behavior,
+    )
+    return _pause_response(result)
+
+
+@router.post("/{session_id}/resume", response_model=ResumeUploadSessionResponse)
+def resume_upload_session(
+    session_id: uuid.UUID,
+    request: ResumeUploadSessionRequest,
+    fastapi_request: Request,
+    actor: AuthenticatedActor = AUTH_ACTOR,
+    session: Session = DB_SESSION,
+    settings: Settings = SETTINGS_DEPENDENCY,
+    storage: ObjectStorage = OBJECT_STORAGE,
+    idempotency_key: str | None = IDEMPOTENCY_KEY_HEADER,
+) -> ResumeUploadSessionResponse:
+    upload_session = _load_owned_session(session, actor, session_id)
+    _require_runtime_permission(
+        session,
+        actor=actor,
+        upload_session=upload_session,
+        permission_codes=("upload.resume",),
+    )
+    service = UploadSessionRuntimeService(session=session, storage=storage, settings=settings)
+    result = service.resume_upload_session(
+        tenant_id=actor.tenant_id,
+        actor=actor,
+        session_id=session_id,
+        request_path=fastapi_request.url.path,
+        request_body=request.model_dump(mode="json"),
+        idempotency_key=idempotency_key,
+        request_id=get_request_id(),
+        reason=request.reason,
+    )
+    return _resume_response(result)
+
+
+@router.post("/{session_id}/complete", response_model=CompleteUploadSessionResponse)
+def complete_upload_session(
+    session_id: uuid.UUID,
+    request: CompleteUploadSessionRequest,
+    fastapi_request: Request,
+    actor: AuthenticatedActor = AUTH_ACTOR,
+    session: Session = DB_SESSION,
+    settings: Settings = SETTINGS_DEPENDENCY,
+    storage: ObjectStorage = OBJECT_STORAGE,
+    idempotency_key: str | None = IDEMPOTENCY_KEY_HEADER,
+) -> CompleteUploadSessionResponse:
+    upload_session = _load_owned_session(session, actor, session_id)
+    _require_runtime_permission(
+        session,
+        actor=actor,
+        upload_session=upload_session,
+        permission_codes=("upload.complete",),
+    )
+    service = UploadSessionRuntimeService(session=session, storage=storage, settings=settings)
+    result = service.complete_upload_session(
+        tenant_id=actor.tenant_id,
+        actor=actor,
+        session_id=session_id,
+        request_path=fastapi_request.url.path,
+        request_body=request.model_dump(mode="json"),
+        idempotency_key=idempotency_key,
+        request_id=get_request_id(),
+        checksum_sha256=request.checksum_sha256,
+    )
+    return _complete_response(result)
+
+
+@router.post("/{session_id}/abort", response_model=AbortUploadSessionResponse)
+def abort_upload_session(
+    session_id: uuid.UUID,
+    request: AbortUploadSessionRequest,
+    fastapi_request: Request,
+    actor: AuthenticatedActor = AUTH_ACTOR,
+    session: Session = DB_SESSION,
+    settings: Settings = SETTINGS_DEPENDENCY,
+    storage: ObjectStorage = OBJECT_STORAGE,
+    idempotency_key: str | None = IDEMPOTENCY_KEY_HEADER,
+) -> AbortUploadSessionResponse:
+    upload_session = _load_owned_session(session, actor, session_id)
+    _require_runtime_permission(
+        session,
+        actor=actor,
+        upload_session=upload_session,
+        permission_codes=("upload.abort",),
+    )
+    service = UploadSessionRuntimeService(session=session, storage=storage, settings=settings)
+    result = service.abort_upload_session(
+        tenant_id=actor.tenant_id,
+        actor=actor,
+        session_id=session_id,
+        request_path=fastapi_request.url.path,
+        request_body=request.model_dump(mode="json"),
+        idempotency_key=idempotency_key,
+        request_id=get_request_id(),
+        reason=request.reason,
+    )
+    return _abort_response(result)
+
+
 def _load_owned_session(
     session: Session,
     actor: AuthenticatedActor,
@@ -380,6 +584,8 @@ def _status_response(result: RuntimeUploadSession) -> UploadSessionStatusRespons
         part_count=result.part_count,
         uploaded_part_count=result.uploaded_part_count,
         missing_part_count=result.missing_part_count,
+        paused_at=result.paused_at,
+        pause_reason=result.pause_reason,
         expires_at=result.expires_at,
         created_at=result.created_at,
         updated_at=result.updated_at,
@@ -435,4 +641,41 @@ def _list_parts_response(result: ListRuntimePartsResult) -> ListPartsResponse:
             )
             for part in result.parts
         ],
+    )
+
+
+def _pause_response(result: PauseUploadSessionResult) -> PauseUploadSessionResponse:
+    return PauseUploadSessionResponse(
+        session_id=result.session_id,
+        status="PAUSED",
+        paused_at=result.paused_at,
+        pause_reason=result.pause_reason,
+    )
+
+
+def _resume_response(result: ResumeUploadSessionResult) -> ResumeUploadSessionResponse:
+    return ResumeUploadSessionResponse(
+        session_id=result.session_id,
+        status="UPLOADING",
+        resumed_at=result.resumed_at,
+    )
+
+
+def _complete_response(result: CompleteUploadSessionResult) -> CompleteUploadSessionResponse:
+    return CompleteUploadSessionResponse(
+        session_id=result.session_id,
+        status="COMPLETED",
+        bucket=result.bucket,
+        object_key=result.object_key,
+        object_size_bytes=result.object_size_bytes,
+        etag=result.etag,
+        completed_at=result.completed_at,
+    )
+
+
+def _abort_response(result: AbortUploadSessionResult) -> AbortUploadSessionResponse:
+    return AbortUploadSessionResponse(
+        session_id=result.session_id,
+        status="ABORTED",
+        aborted_at=result.aborted_at,
     )
