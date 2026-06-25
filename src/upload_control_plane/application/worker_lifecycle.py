@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from upload_control_plane.application.outbox import OutboxAppend, append_outbox_event
 from upload_control_plane.config import Settings
 from upload_control_plane.domain.datasets import DatasetStatus, RecoveryStatus
 from upload_control_plane.domain.session_state import UploadSessionStatus
@@ -514,6 +515,34 @@ class WorkerLifecycleService:
                 created_at=now,
             )
         )
+        append_outbox_event(
+            self._session,
+            OutboxAppend(
+                tenant_id=upload_session.tenant_id,
+                aggregate_type="upload_session",
+                aggregate_id=upload_session.id,
+                event_type=event_type,
+                payload={
+                    "session_id": str(upload_session.id),
+                    "project_id": str(upload_session.project_id)
+                    if upload_session.project_id is not None
+                    else None,
+                    "dataset_id": str(upload_session.dataset_id)
+                    if upload_session.dataset_id is not None
+                    else None,
+                    "upload_task_id": str(upload_session.upload_task_id)
+                    if upload_session.upload_task_id is not None
+                    else None,
+                    "upload_object_id": str(upload_session.upload_object_id)
+                    if upload_session.upload_object_id is not None
+                    else None,
+                    "status": upload_session.status,
+                    "event": payload,
+                },
+                created_at=now,
+                next_attempt_at=now,
+            ),
+        )
 
     def _add_audit(
         self,
@@ -543,6 +572,25 @@ class WorkerLifecycleService:
                 metadata_=metadata or {"source": "worker.lifecycle"},
                 created_at=now,
             )
+        )
+        append_outbox_event(
+            self._session,
+            OutboxAppend(
+                tenant_id=dataset.tenant_id,
+                aggregate_type="dataset",
+                aggregate_id=dataset.id,
+                event_type=action,
+                payload={
+                    "dataset_id": str(dataset.id),
+                    "project_id": str(dataset.project_id),
+                    "status": dataset.status,
+                    "recovery_status": dataset.recovery_status,
+                    "result": result,
+                    "metadata": metadata or {"source": "worker.lifecycle"},
+                },
+                created_at=now,
+                next_attempt_at=now,
+            ),
         )
 
     def _dataset_audit_state(self, dataset: Dataset) -> dict[str, object]:

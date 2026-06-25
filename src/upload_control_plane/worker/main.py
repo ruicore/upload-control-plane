@@ -12,6 +12,7 @@ from typing import Annotated
 import typer
 from sqlalchemy.orm import Session
 
+from upload_control_plane.application.outbox import LoggingOutboxSink, OutboxDispatcher
 from upload_control_plane.application.worker_lifecycle import (
     ObjectReference,
     WorkerLifecycleService,
@@ -48,6 +49,26 @@ def run_once() -> None:
         typer.echo(json.dumps(asdict(summary), sort_keys=True))
 
 
+@app.command("dispatch-outbox")
+def dispatch_outbox() -> None:
+    """Run one outbox dispatcher pass and exit."""
+
+    settings = get_settings()
+    engine = build_engine(settings)
+    session_factory = build_session_factory(engine)
+    session: Session = session_factory()
+    try:
+        dispatcher = OutboxDispatcher(
+            session=session,
+            sink=LoggingOutboxSink(),
+            settings=settings,
+        )
+        summary = dispatcher.dispatch_due()
+        typer.echo(json.dumps(asdict(summary), sort_keys=True))
+    finally:
+        session.close()
+
+
 @app.command("reconcile")
 def reconcile(
     object_ref: Annotated[
@@ -74,12 +95,26 @@ def run() -> None:
     """Run lifecycle automation periodically."""
 
     settings = get_settings()
+    engine = build_engine(settings)
+    session_factory = build_session_factory(engine)
     logging.basicConfig(level=settings.log_level)
     logger = logging.getLogger(__name__)
     while True:
         with _service() as service:
             summary = service.run_once()
             logger.info("worker lifecycle pass completed", extra=asdict(summary))
+        if settings.enable_outbox_dispatcher:
+            session: Session = session_factory()
+            try:
+                dispatcher = OutboxDispatcher(
+                    session=session,
+                    sink=LoggingOutboxSink(),
+                    settings=settings,
+                )
+                outbox_summary = dispatcher.dispatch_due()
+                logger.info("worker outbox pass completed", extra=asdict(outbox_summary))
+            finally:
+                session.close()
         time.sleep(settings.worker_poll_interval_seconds)
 
 
