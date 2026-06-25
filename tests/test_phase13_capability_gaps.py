@@ -5,17 +5,6 @@ import pytest
 
 @pytest.mark.xfail(
     reason=(
-        "Phase 13 gap: retention/legal-hold protected purge denial has storage capability "
-        "metadata, but no purge policy workflow is implemented yet."
-    ),
-    run=False,
-)
-def test_retention_or_legal_hold_protected_purge_denial_gap() -> None:
-    raise AssertionError("purge policy workflow not implemented")
-
-
-@pytest.mark.xfail(
-    reason=(
         "Phase 13 gap: quota/backpressure settings and metrics exist, but upload or presign "
         "rejection gates are not implemented yet."
     ),
@@ -38,10 +27,12 @@ def test_kms_unavailable_rejection_gap() -> None:
 
 @pytest.mark.xfail(
     reason=(
-        "Phase 13 gap: restore reconciliation is supported for in-progress multipart parts; "
-        "completed dataset restore from DB/object-storage loss is not implemented yet."
+        "Phase 13 gap: completed dataset reconciliation classifies missing-object, "
+        "metadata-only, verified, and object-only cases in the lifecycle worker, but no "
+        "product path rebuilds dataset DB metadata from an object-only reference or restores "
+        "a missing final object."
     ),
     run=False,
 )
-def test_completed_dataset_restore_reconciliation_gap() -> None:
-    raise AssertionError("completed dataset restore reconciliation not implemented")
+def test_completed_dataset_automated_restore_or_rebuild_gap() -> None:
+    raise AssertionError("completed dataset automated restore or rebuild not implemented")
