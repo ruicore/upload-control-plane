@@ -5,13 +5,13 @@ import pytest
 
 @pytest.mark.xfail(
     reason=(
-        "Phase 13 gap: quota/backpressure settings and metrics exist, but upload or presign "
-        "rejection gates are not implemented yet."
+        "Phase 13 gap: backpressure settings and metrics exist, but no upload create or presign "
+        "path rejects requests based on storage backpressure yet."
     ),
     run=False,
 )
-def test_quota_or_backpressure_rejection_gap() -> None:
-    raise AssertionError("quota/backpressure rejection gate not implemented")
+def test_backpressure_rejection_gate_gap() -> None:
+    raise AssertionError("backpressure rejection gate not implemented")
 
 
 @pytest.mark.xfail(
