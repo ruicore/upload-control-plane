@@ -123,6 +123,7 @@ def test_valid_api_key_authenticates_actor() -> None:
         "tenant_id": str(api_key.tenant_id),
         "api_key_id": str(api_key.id),
         "subject_id": str(api_key.subject_id),
+        "actor_type": "api_key",
         "scopes": ["dev"],
     }
 

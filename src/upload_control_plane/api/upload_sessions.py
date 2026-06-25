@@ -502,6 +502,14 @@ def _load_owned_session(
             code="upload_session.not_found",
             message="Upload session not found.",
         )
+    if actor.actor_type == "device" and upload_session.source_device_id != actor.device_id:
+        from upload_control_plane.api.errors import ApiError
+
+        raise ApiError(
+            status_code=403,
+            code="device.session_not_authorized",
+            message="Device credential is not authorized for this upload session.",
+        )
     return upload_session
 
 

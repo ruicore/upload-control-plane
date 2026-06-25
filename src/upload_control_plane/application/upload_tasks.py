@@ -417,6 +417,7 @@ class UploadTaskCreationService:
         upload_session: UploadSession,
     ) -> None:
         actor_id = str(command.actor.subject_id)
+        actor_type = command.actor.actor_type
         payload = {
             "task_id": str(task.id),
             "object_id": str(upload_object.id),
@@ -432,7 +433,7 @@ class UploadTaskCreationService:
                     upload_object_id=upload_object.id,
                     session_id=upload_session.id,
                     event_type="upload_task.created",
-                    actor_type="api_key",
+                    actor_type=actor_type,
                     actor_id=actor_id,
                     request_id=command.request_id,
                     payload=payload,
@@ -445,7 +446,7 @@ class UploadTaskCreationService:
                     upload_object_id=upload_object.id,
                     session_id=upload_session.id,
                     event_type="upload_session.storage_initiated",
-                    actor_type="api_key",
+                    actor_type=actor_type,
                     actor_id=actor_id,
                     request_id=command.request_id,
                     payload=payload,
@@ -454,7 +455,7 @@ class UploadTaskCreationService:
                     tenant_id=command.tenant_id,
                     project_id=command.project_id,
                     dataset_id=dataset.id,
-                    actor_type="api_key",
+                    actor_type=actor_type,
                     actor_id=actor_id,
                     action="upload_task.create",
                     resource_type="upload_task",

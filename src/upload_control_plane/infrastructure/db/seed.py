@@ -12,6 +12,7 @@ from upload_control_plane.infrastructure.db.models import (
     ApiKey,
     Dataset,
     Device,
+    DeviceCredential,
     PermissionGrant,
     Project,
     StoragePolicy,
@@ -73,6 +74,12 @@ def build_dev_seed_result() -> DevSeedResult:
             "tag.create",
             "tag.update",
             "tag.delete",
+            "device.view",
+            "device.create",
+            "device.update",
+            "device.disable",
+            "device.credentials.rotate",
+            "device.credentials.revoke",
         ),
     )
 
@@ -154,6 +161,19 @@ def seed_dev_data(session: Session, settings: Settings) -> DevSeedResult:
     device.metadata_ = {"seed": "dev", "line": "3"}
     session.flush()
 
+    credential = _get_or_create(
+        session,
+        DeviceCredential,
+        dev_seed_uuid("device-credential:robot-17:v1"),
+    )
+    credential.tenant_id = result.tenant_id
+    credential.device_id = result.device_id
+    credential.credential_version = 1
+    credential.credential_hash = hash_dev_secret(DEV_DEVICE_CREDENTIAL_VALUE)
+    credential.expires_at = None
+    credential.revoked_at = None
+    credential.metadata_ = {"seed": "dev"}
+
     dataset = _get_or_create(session, Dataset, result.dataset_id)
     dataset.tenant_id = result.tenant_id
     dataset.project_id = result.project_id
@@ -221,6 +241,10 @@ def load_seeded_counts(session: Session, result: DevSeedResult) -> dict[str, int
         "projects": int(session.get(Project, result.project_id) is not None),
         "datasets": int(session.get(Dataset, result.dataset_id) is not None),
         "devices": int(session.get(Device, result.device_id) is not None),
+        "device_credentials": int(
+            session.get(DeviceCredential, dev_seed_uuid("device-credential:robot-17:v1"))
+            is not None
+        ),
         "permission_grants": len(
             session.scalars(
                 select(PermissionGrant).where(
