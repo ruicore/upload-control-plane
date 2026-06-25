@@ -11,6 +11,11 @@ Core metric families:
 
 - `api_requests_total{method,path,status_code}`
 - `api_request_duration_seconds{method,path,status_code}`
+- `upload_sessions_created_total{tenant_id}`
+- `upload_sessions_completed_total{tenant_id}`
+- `upload_sessions_aborted_total{tenant_id}`
+- `upload_sessions_failed_total{tenant_id,error_code}`
+- `upload_sessions_expired_total{tenant_id}`
 - `storage_operation_duration_seconds{operation}`
 - `storage_operation_errors_total{operation,error_code}`
 - `upload_sessions_by_status{status}`
@@ -22,6 +27,11 @@ Core metric families:
 - `recovery_datasets_by_status{status}`
 
 Labels intentionally avoid raw `session_id`, object keys, URLs, credentials, and filenames.
+The endpoint is lightweight and process-local: in-memory counters and histograms reset when the
+API process restarts. Metric families for paths that are not wired to runtime instrumentation yet
+emit zero-valued placeholder samples with bounded labels such as `tenant_id="unknown"` or
+`error_code="unknown"`. DB-backed samples are aggregate snapshots and do not include object keys,
+bucket URLs, credentials, presigned query strings, or raw filenames.
 
 ## Structured Logs
 
