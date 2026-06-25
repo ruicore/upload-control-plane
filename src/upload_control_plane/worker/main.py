@@ -12,6 +12,7 @@ from typing import Annotated
 import typer
 from sqlalchemy.orm import Session
 
+from upload_control_plane.application.dataset_validation import DatasetValidationWorkerService
 from upload_control_plane.application.outbox import LoggingOutboxSink, OutboxDispatcher
 from upload_control_plane.application.worker_lifecycle import (
     ObjectReference,
@@ -40,11 +41,36 @@ def _service() -> Iterator[WorkerLifecycleService]:
         session.close()
 
 
+@contextmanager
+def _validation_service() -> Iterator[DatasetValidationWorkerService]:
+    settings = get_settings()
+    engine = build_engine(settings)
+    session_factory = build_session_factory(engine)
+    session: Session = session_factory()
+    try:
+        yield DatasetValidationWorkerService(
+            session=session,
+            storage=build_s3_object_storage(settings),
+            settings=settings,
+        )
+    finally:
+        session.close()
+
+
 @app.command("run-once")
 def run_once() -> None:
     """Run one lifecycle pass and exit."""
 
     with _service() as service:
+        summary = service.run_once()
+        typer.echo(json.dumps(asdict(summary), sort_keys=True))
+
+
+@app.command("validate-datasets")
+def validate_datasets() -> None:
+    """Run one dataset validation and metadata extraction pass and exit."""
+
+    with _validation_service() as service:
         summary = service.run_once()
         typer.echo(json.dumps(asdict(summary), sort_keys=True))
 
@@ -103,6 +129,12 @@ def run() -> None:
         with _service() as service:
             summary = service.run_once()
             logger.info("worker lifecycle pass completed", extra=asdict(summary))
+        with _validation_service() as service:
+            validation_summary = service.run_once()
+            logger.info(
+                "worker dataset validation pass completed",
+                extra=asdict(validation_summary),
+            )
         if settings.enable_outbox_dispatcher:
             session: Session = session_factory()
             try:

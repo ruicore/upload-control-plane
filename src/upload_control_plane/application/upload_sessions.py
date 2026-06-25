@@ -1334,6 +1334,12 @@ class UploadSessionRuntimeService:
                     dataset.object_version_id = storage_result.version_id
                     dataset.bucket_name = storage_result.bucket
                     dataset.object_key = storage_result.object_key
+                if (
+                    status is UploadSessionStatus.COMPLETED
+                    and self._settings.enable_dataset_validation
+                    and dataset.validation_status == "NOT_REQUIRED"
+                ):
+                    dataset.validation_status = "PENDING"
                 dataset.updated_at = now
         if upload_session.upload_task_id is not None:
             upload_task = self._session.get(UploadTask, upload_session.upload_task_id)
