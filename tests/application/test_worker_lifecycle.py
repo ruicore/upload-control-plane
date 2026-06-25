@@ -41,6 +41,7 @@ from upload_control_plane.infrastructure.db.models import (
     Dataset,
     DatasetTag,
     IdempotencyRecord,
+    OutboxEvent,
     StoragePolicy,
     UploadEvent,
     UploadObject,
@@ -451,6 +452,19 @@ def _delete_t11_artifacts(session: Session) -> None:
     if dataset_ids:
         session.execute(delete(DatasetTag).where(DatasetTag.dataset_id.in_(dataset_ids)))
         session.execute(delete(AuditEvent).where(AuditEvent.dataset_id.in_(dataset_ids)))
+        session.execute(
+            delete(OutboxEvent).where(
+                (OutboxEvent.aggregate_type == "dataset")
+                & (OutboxEvent.aggregate_id.in_(dataset_ids))
+            )
+        )
+    if session_ids:
+        session.execute(
+            delete(OutboxEvent).where(
+                (OutboxEvent.aggregate_type == "upload_session")
+                & (OutboxEvent.aggregate_id.in_(session_ids))
+            )
+        )
     if task_ids:
         session.execute(delete(UploadObject).where(UploadObject.upload_task_id.in_(task_ids)))
         session.execute(delete(UploadTask).where(UploadTask.id.in_(task_ids)))
