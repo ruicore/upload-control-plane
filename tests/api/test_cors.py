@@ -52,3 +52,25 @@ def test_unconfigured_browser_origin_preflight_is_not_allowed() -> None:
 
     assert response.status_code == 400
     assert "access-control-allow-origin" not in response.headers
+
+
+def test_unconfigured_signed_upload_header_preflight_is_not_allowed() -> None:
+    client = TestClient(
+        create_app(
+            Settings(
+                api_cors_allowed_origins=["http://localhost:5173"],
+                api_cors_allowed_headers=["authorization", "content-type", "x-request-id"],
+            )
+        )
+    )
+
+    response = client.options(
+        "/v1/projects/020500f8-920c-5a49-bf01-0eca416b8ddf/upload-tasks",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": ("authorization,content-type,x-amz-checksum-sha256"),
+        },
+    )
+
+    assert response.status_code == 400
