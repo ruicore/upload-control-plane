@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("dev-up", "migrate", "seed-dev", "test", "dev-down")]
+    [ValidateSet("dev-up", "migrate", "seed-dev", "test", "manual-uploader", "dev-down")]
     [string] $Command
 )
 
@@ -34,6 +34,16 @@ switch ($Command) {
         uv run ruff format --check
         uv run mypy src tests
         uv run pytest
+    }
+    "manual-uploader" {
+        Push-Location tools/manual-uploader
+        try {
+            npm install
+            npm run dev
+        }
+        finally {
+            Pop-Location
+        }
     }
     "dev-down" {
         docker compose down

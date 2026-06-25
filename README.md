@@ -104,11 +104,24 @@ curl http://localhost:18080/healthz
 make dev-down
 ```
 
+Run the development-only browser uploader from `http://localhost:5173`:
+
+```bash
+make manual-uploader
+```
+
+The browser uploader lives under `tools/manual-uploader`. It calls the public
+upload APIs for task creation, presign, status, pause, resume, complete, and
+abort, then uploads part bytes directly to MinIO/S3 through presigned URLs. It
+does not add backend routes, does not receive object-storage credentials, and
+does not persist presigned URLs.
+
 On Windows hosts without GNU Make, use the equivalent PowerShell script:
 
 ```powershell
 .\scripts\dev.ps1 dev-up
 Invoke-RestMethod http://localhost:18080/healthz
+.\scripts\dev.ps1 manual-uploader
 .\scripts\dev.ps1 dev-down
 ```
 
