@@ -27,6 +27,8 @@ from upload_control_plane.infrastructure.db.models import (
     AuditEvent,
     Dataset,
     DatasetTag,
+    DatasetValidationResult,
+    OutboxEvent,
     Project,
     StoragePolicy,
     Tag,
@@ -67,6 +69,41 @@ class DatasetDetail(DatasetSummary):
     preview_status: str
     preview_metadata: dict[str, Any]
     metadata: dict[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetValidationResultItem:
+    validation_result_id: uuid.UUID
+    status: str
+    validator_name: str
+    validator_version: str | None
+    extracted_metadata: dict[str, Any]
+    errors: list[dict[str, Any]]
+    started_at: datetime | None
+    completed_at: datetime | None
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetValidationStatusResult:
+    dataset_id: uuid.UUID
+    project_id: uuid.UUID
+    dataset_status: str
+    validation_status: str
+    preview_status: str
+    preview_metadata: dict[str, Any]
+    extracted_metadata: dict[str, Any]
+    latest_result: DatasetValidationResultItem | None
+    results: tuple[DatasetValidationResultItem, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class RetryValidationResult:
+    dataset_id: uuid.UUID
+    project_id: uuid.UUID
+    dataset_status: str
+    validation_status: str
+    retry_queued: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,6 +195,129 @@ class DatasetLifecycleService:
             tenant_id=tenant_id, project_id=project_id, dataset_id=dataset_id
         )
         return self._detail(dataset)
+
+    def get_validation_result(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+    ) -> DatasetValidationStatusResult:
+        dataset = self._get_dataset(
+            tenant_id=tenant_id, project_id=project_id, dataset_id=dataset_id
+        )
+        results = tuple(
+            _validation_result(row)
+            for row in self._session.scalars(
+                select(DatasetValidationResult)
+                .where(DatasetValidationResult.tenant_id == tenant_id)
+                .where(DatasetValidationResult.project_id == project_id)
+                .where(DatasetValidationResult.dataset_id == dataset_id)
+                .order_by(
+                    DatasetValidationResult.created_at.desc(),
+                    DatasetValidationResult.id.desc(),
+                )
+            )
+        )
+        latest = results[0] if results else None
+        return DatasetValidationStatusResult(
+            dataset_id=dataset.id,
+            project_id=dataset.project_id,
+            dataset_status=dataset.status,
+            validation_status=dataset.validation_status,
+            preview_status=dataset.preview_status,
+            preview_metadata=dict(dataset.preview_metadata or {}),
+            extracted_metadata=dict((dataset.metadata_ or {}).get("extracted_metadata") or {}),
+            latest_result=latest,
+            results=results,
+        )
+
+    def retry_validation(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+        actor: AuthenticatedActor,
+        request_id: str | None,
+    ) -> RetryValidationResult:
+        dataset = self._get_dataset_for_update(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            dataset_id=dataset_id,
+        )
+        if dataset.validation_status in {
+            ValidationStatus.PENDING.value,
+            ValidationStatus.RUNNING.value,
+        }:
+            return RetryValidationResult(
+                dataset_id=dataset.id,
+                project_id=dataset.project_id,
+                dataset_status=dataset.status,
+                validation_status=dataset.validation_status,
+                retry_queued=False,
+            )
+        if dataset.validation_status != ValidationStatus.FAILED.value or dataset.status not in {
+            DatasetStatus.REJECTED.value,
+            DatasetStatus.QUARANTINED.value,
+            DatasetStatus.PROCESSING.value,
+        }:
+            raise ApiError(
+                status_code=409,
+                code="dataset.validation_retry_not_eligible",
+                message="Dataset validation cannot be retried in its current state.",
+                details={
+                    "dataset_status": dataset.status,
+                    "validation_status": dataset.validation_status,
+                },
+            )
+        if dataset.bucket_name is None or dataset.object_key is None:
+            raise ApiError(
+                status_code=409,
+                code="dataset.object_missing",
+                message="Dataset has no completed storage object.",
+            )
+
+        before = self._audit_state(dataset)
+        now = datetime.now(UTC)
+        dataset.status = DatasetStatus.PROCESSING.value
+        dataset.validation_status = ValidationStatus.PENDING.value
+        dataset.updated_at = now
+        after = self._audit_state(dataset)
+        self._add_audit(
+            dataset,
+            actor=actor,
+            action="dataset.validation_retry",
+            result="SUCCESS",
+            request_id=request_id,
+            before_state=before,
+            after_state=after,
+        )
+        self._session.add(
+            OutboxEvent(
+                tenant_id=dataset.tenant_id,
+                aggregate_type="dataset",
+                aggregate_id=dataset.id,
+                event_type="dataset.validation_retry",
+                payload={
+                    "dataset_id": str(dataset.id),
+                    "project_id": str(dataset.project_id),
+                    "status": dataset.status,
+                    "validation_status": dataset.validation_status,
+                    "result": "SUCCESS",
+                },
+                created_at=now,
+                next_attempt_at=now,
+            )
+        )
+        self._session.commit()
+        return RetryValidationResult(
+            dataset_id=dataset.id,
+            project_id=dataset.project_id,
+            dataset_status=dataset.status,
+            validation_status=dataset.validation_status,
+            retry_queued=True,
+        )
 
     def update_dataset(
         self,
@@ -617,6 +777,20 @@ class DatasetLifecycleService:
             raise ApiError(status_code=404, code="dataset.not_found", message="Dataset not found.")
         return dataset
 
+    def _get_dataset_for_update(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        project_id: uuid.UUID,
+        dataset_id: uuid.UUID,
+    ) -> Dataset:
+        dataset = self._session.scalar(
+            select(Dataset).where(Dataset.id == dataset_id).with_for_update()
+        )
+        if dataset is None or dataset.tenant_id != tenant_id or dataset.project_id != project_id:
+            raise ApiError(status_code=404, code="dataset.not_found", message="Dataset not found.")
+        return dataset
+
     def _require_project(self, *, tenant_id: uuid.UUID, project_id: uuid.UUID) -> Project:
         project = self._session.get(Project, project_id)
         if project is None or project.tenant_id != tenant_id or project.deleted_at is not None:
@@ -845,4 +1019,18 @@ def _tag_result(tag: Tag) -> TagResult:
         color=tag.color,
         created_at=tag.created_at,
         updated_at=tag.updated_at,
+    )
+
+
+def _validation_result(row: DatasetValidationResult) -> DatasetValidationResultItem:
+    return DatasetValidationResultItem(
+        validation_result_id=row.id,
+        status=row.status,
+        validator_name=row.validator_name,
+        validator_version=row.validator_version,
+        extracted_metadata=dict(row.extracted_metadata or {}),
+        errors=list(row.errors or []),
+        started_at=row.started_at,
+        completed_at=row.completed_at,
+        created_at=row.created_at,
     )

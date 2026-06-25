@@ -16,7 +16,10 @@ from upload_control_plane.application.datasets import (
     DatasetDetail,
     DatasetLifecycleService,
     DatasetSummary,
+    DatasetValidationResultItem,
+    DatasetValidationStatusResult,
     DownloadUrlResult,
+    RetryValidationResult,
     TagCategoryResult,
     TagResult,
 )
@@ -66,6 +69,30 @@ class DatasetListResponse(BaseModel):
     datasets: list[DatasetSummaryResponse]
 
 
+class DatasetValidationResultResponse(BaseModel):
+    validation_result_id: uuid.UUID
+    status: str
+    validator_name: str
+    validator_version: str | None
+    extracted_metadata: dict[str, Any]
+    errors: list[dict[str, Any]]
+    started_at: datetime | None
+    completed_at: datetime | None
+    created_at: datetime
+
+
+class DatasetValidationResponse(BaseModel):
+    dataset_id: uuid.UUID
+    project_id: uuid.UUID
+    dataset_status: str
+    validation_status: str
+    preview_status: str
+    preview_metadata: dict[str, Any]
+    extracted_metadata: dict[str, Any]
+    latest_result: DatasetValidationResultResponse | None
+    results: list[DatasetValidationResultResponse]
+
+
 class DatasetUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -98,6 +125,14 @@ class DownloadUrlResponse(BaseModel):
     method: Literal["GET"]
     url: str
     expires_at: datetime
+
+
+class RetryValidationResponse(BaseModel):
+    dataset_id: uuid.UUID
+    project_id: uuid.UUID
+    dataset_status: str
+    validation_status: str
+    retry_queued: bool
 
 
 class PurgeDatasetRequest(BaseModel):
@@ -222,6 +257,55 @@ def get_dataset(
             tenant_id=actor.tenant_id,
             project_id=project_id,
             dataset_id=dataset_id,
+        )
+    )
+
+
+@router.get("/datasets/{dataset_id}/validation", response_model=DatasetValidationResponse)
+def get_dataset_validation(
+    project_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    actor: AuthenticatedActor = AUTH_ACTOR,
+    session: Session = DB_SESSION,
+    settings: Settings = SETTINGS_DEPENDENCY,
+    storage: ObjectStorage = OBJECT_STORAGE,
+) -> DatasetValidationResponse:
+    _require_dataset_permission(
+        session, actor=actor, dataset_id=dataset_id, permission="dataset.view"
+    )
+    service = DatasetLifecycleService(session=session, storage=storage, settings=settings)
+    return _validation_response(
+        service.get_validation_result(
+            tenant_id=actor.tenant_id,
+            project_id=project_id,
+            dataset_id=dataset_id,
+        )
+    )
+
+
+@router.post(
+    "/datasets/{dataset_id}/validation/retry",
+    response_model=RetryValidationResponse,
+)
+def retry_dataset_validation(
+    project_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    actor: AuthenticatedActor = AUTH_ACTOR,
+    session: Session = DB_SESSION,
+    settings: Settings = SETTINGS_DEPENDENCY,
+    storage: ObjectStorage = OBJECT_STORAGE,
+) -> RetryValidationResponse:
+    _require_dataset_permission(
+        session, actor=actor, dataset_id=dataset_id, permission="dataset.validate"
+    )
+    service = DatasetLifecycleService(session=session, storage=storage, settings=settings)
+    return _retry_validation_response(
+        service.retry_validation(
+            tenant_id=actor.tenant_id,
+            project_id=project_id,
+            dataset_id=dataset_id,
+            actor=actor,
+            request_id=get_request_id(),
         )
     )
 
@@ -636,6 +720,48 @@ def _download_response(item: DownloadUrlResult) -> DownloadUrlResponse:
         method="GET",
         url=item.url,
         expires_at=item.expires_at,
+    )
+
+
+def _validation_result_response(
+    item: DatasetValidationResultItem,
+) -> DatasetValidationResultResponse:
+    return DatasetValidationResultResponse(
+        validation_result_id=item.validation_result_id,
+        status=item.status,
+        validator_name=item.validator_name,
+        validator_version=item.validator_version,
+        extracted_metadata=item.extracted_metadata,
+        errors=item.errors,
+        started_at=item.started_at,
+        completed_at=item.completed_at,
+        created_at=item.created_at,
+    )
+
+
+def _validation_response(item: DatasetValidationStatusResult) -> DatasetValidationResponse:
+    return DatasetValidationResponse(
+        dataset_id=item.dataset_id,
+        project_id=item.project_id,
+        dataset_status=item.dataset_status,
+        validation_status=item.validation_status,
+        preview_status=item.preview_status,
+        preview_metadata=item.preview_metadata,
+        extracted_metadata=item.extracted_metadata,
+        latest_result=_validation_result_response(item.latest_result)
+        if item.latest_result is not None
+        else None,
+        results=[_validation_result_response(result) for result in item.results],
+    )
+
+
+def _retry_validation_response(item: RetryValidationResult) -> RetryValidationResponse:
+    return RetryValidationResponse(
+        dataset_id=item.dataset_id,
+        project_id=item.project_id,
+        dataset_status=item.dataset_status,
+        validation_status=item.validation_status,
+        retry_queued=item.retry_queued,
     )
 
 

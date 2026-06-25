@@ -62,6 +62,7 @@ def build_dev_seed_result() -> DevSeedResult:
             "dataset.update",
             "dataset.upload",
             "dataset.download",
+            "dataset.validate",
             "dataset.delete",
             "dataset.archive",
             "dataset.restore",
