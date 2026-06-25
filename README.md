@@ -136,11 +136,34 @@ curl http://localhost:18080/healthz
 make dev-down
 ```
 
+Run the development-only browser uploader from `http://localhost:5173`:
+
+```bash
+make manual-uploader
+```
+
+The browser uploader lives under `tools/manual-uploader`. It calls the public
+upload APIs for task creation, presign, status, pause, resume, complete, and
+abort, then uploads part bytes directly to MinIO/S3 through presigned URLs. It
+does not add backend routes, does not receive object-storage credentials, and
+does not persist presigned URLs.
+
+The local API allows browser CORS from `http://localhost:5173` through
+`API_CORS_ALLOWED_ORIGINS`, including the `Authorization`, `Content-Type`,
+`Idempotency-Key`, and `X-Request-ID` headers used by the manual uploader.
+API CORS list environment overrides should use JSON arrays, for example
+`API_CORS_ALLOWED_ORIGINS=["http://localhost:5173"]`, because these values are
+loaded by `pydantic-settings` as `list[str]` fields at process startup.
+The local MinIO service allows the same browser origin through
+`MINIO_API_CORS_ALLOW_ORIGIN` so direct browser `PUT` requests to presigned URLs
+can pass preflight without exposing MinIO credentials to the browser.
+
 On Windows hosts without GNU Make, use the equivalent PowerShell script:
 
 ```powershell
 .\scripts\dev.ps1 dev-up
 Invoke-RestMethod http://localhost:18080/healthz
+.\scripts\dev.ps1 manual-uploader
 .\scripts\dev.ps1 dev-down
 ```
 

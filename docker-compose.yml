@@ -5,6 +5,10 @@ services:
     environment:
       APP_ENV: local
       APP_NAME: upload-control-plane
+      API_CORS_ALLOWED_ORIGINS: ${API_CORS_ALLOWED_ORIGINS:-["http://localhost:5173"]}
+      API_CORS_ALLOWED_METHODS: ${API_CORS_ALLOWED_METHODS:-["GET","POST","PATCH","DELETE","OPTIONS"]}
+      API_CORS_ALLOWED_HEADERS: ${API_CORS_ALLOWED_HEADERS:-["authorization","content-type","idempotency-key","x-request-id"]}
+      API_CORS_EXPOSE_HEADERS: ${API_CORS_EXPOSE_HEADERS:-["x-request-id"]}
       DATABASE_URL: postgresql+psycopg://upload:upload@postgres:5432/upload
       S3_ENDPOINT_URL: http://minio:9000
       S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-http://localhost:19000}
@@ -67,6 +71,7 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_API_CORS_ALLOW_ORIGIN:-http://localhost:5173,http://localhost:3000}
     ports:
       - "${MINIO_HOST_PORT:-19000}:9000"
       - "${MINIO_CONSOLE_HOST_PORT:-19001}:9001"
@@ -83,11 +88,13 @@ services:
     depends_on:
       minio:
         condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/robot-data
-      "
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        mc alias set local http://minio:9000 minioadmin minioadmin
+        mc mb --ignore-existing local/robot-data
 
 volumes:
   postgres-data:

@@ -15,6 +15,20 @@ class Settings(BaseSettings):
     app_name: str = "upload-control-plane"
     log_level: str = "INFO"
 
+    api_cors_allowed_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    api_cors_allowed_methods: list[str] = Field(
+        default_factory=lambda: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
+    )
+    api_cors_allowed_headers: list[str] = Field(
+        default_factory=lambda: [
+            "authorization",
+            "content-type",
+            "idempotency-key",
+            "x-request-id",
+        ]
+    )
+    api_cors_expose_headers: list[str] = Field(default_factory=lambda: ["x-request-id"])
+
     database_url: str = "postgresql+psycopg://upload:upload@localhost:25432/upload"
     database_echo: bool = False
     database_pool_pre_ping: bool = True
@@ -108,6 +122,10 @@ class Settings(BaseSettings):
         "s3_cors_allowed_origins",
         "s3_cors_allowed_headers",
         "s3_cors_expose_headers",
+        "api_cors_allowed_origins",
+        "api_cors_allowed_methods",
+        "api_cors_allowed_headers",
+        "api_cors_expose_headers",
         mode="before",
     )
     @classmethod

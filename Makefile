@@ -1,4 +1,4 @@
-.PHONY: dev-up migrate seed-dev test dev-down
+.PHONY: dev-up migrate seed-dev test manual-uploader dev-down
 
 dev-up:
 	docker compose up --build -d
@@ -14,6 +14,9 @@ test:
 	uv run ruff format --check
 	uv run mypy src tests
 	uv run pytest
+
+manual-uploader:
+	cd tools/manual-uploader && npm install && npm run dev
 
 dev-down:
 	docker compose down
