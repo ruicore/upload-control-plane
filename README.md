@@ -56,15 +56,47 @@ Implemented today:
 - Project structure and packaging.
 - Development tooling and quality gates.
 - Documentation and PRD scaffolding.
+- Public upload task and upload session runtime APIs.
+- `uploadctl` Python CLI uploader for direct-to-object-storage multipart uploads.
 
 Not implemented yet:
 
-- Upload API endpoints.
-- PostgreSQL schema and migrations for the upload domain.
-- MinIO/S3 multipart adapter.
 - Cleanup, validation, outbox, and lifecycle workers.
-- `uploadctl` CLI uploader.
 - MQTT adapter.
+
+## Python CLI Uploader
+
+`uploadctl` uses only the public HTTP API and presigned upload URLs. It does
+not receive MinIO/S3 credentials, and it streams file parts directly from disk
+to object storage without sending file bytes through FastAPI.
+
+Example local upload after `make dev-up`, `make migrate`, and `make seed-dev`:
+
+```bash
+uv run uploadctl upload ./front_camera.mp4 \
+  --api-url http://localhost:18080 \
+  --api-key ucp_dev_api_key_local_only_20260624 \
+  --project-id <seeded-project-id> \
+  --device-id robot-17 \
+  --part-size 64MiB \
+  --concurrency 8
+```
+
+Resume from the durable local manifest:
+
+```bash
+uv run uploadctl resume ./.uploadctl/front_camera.mp4.upload.json \
+  --api-key ucp_dev_api_key_local_only_20260624
+```
+
+Operational controls:
+
+```bash
+uv run uploadctl status <session-id> --api-url http://localhost:18080 --api-key <api-key>
+uv run uploadctl pause <session-id> --api-url http://localhost:18080 --api-key <api-key>
+uv run uploadctl resume-session <session-id> --api-url http://localhost:18080 --api-key <api-key>
+uv run uploadctl abort <session-id> --api-url http://localhost:18080 --api-key <api-key>
+```
 
 This project is production-oriented, but it is not production-proven.
 

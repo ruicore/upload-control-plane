@@ -24,16 +24,20 @@ dependencies = [
   "alembic>=1.16",
   "boto3>=1.43.36",
   "fastapi>=0.116.2",
+  "httpx>=0.28.1",
   "psycopg[binary]>=3.2.10",
   "pydantic-settings>=2.10.1",
   "sqlalchemy>=2.0",
+  "typer>=0.19.2",
   "uvicorn[standard]>=0.35.0",
 ]
+
+[project.scripts]
+uploadctl = "upload_control_plane.cli.main:app"
 
 [dependency-groups]
 dev = [
   "boto3-stubs[s3]>=1.43.36",
-  "httpx>=0.28.1",
   "mypy>=1.18.2",
   "pre-commit>=4.3.0",
   "pytest>=8.4.2",
