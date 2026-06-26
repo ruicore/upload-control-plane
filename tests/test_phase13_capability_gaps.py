@@ -5,17 +5,6 @@ import pytest
 
 @pytest.mark.xfail(
     reason=(
-        "Phase 13 gap: backpressure settings and metrics exist, but no upload create or presign "
-        "path rejects requests based on storage backpressure yet."
-    ),
-    run=False,
-)
-def test_backpressure_rejection_gate_gap() -> None:
-    raise AssertionError("backpressure rejection gate not implemented")
-
-
-@pytest.mark.xfail(
-    reason=(
         "Phase 13 gap: completed dataset reconciliation classifies missing-object, "
         "metadata-only, verified, and object-only cases in the lifecycle worker, but no "
         "product path rebuilds dataset DB metadata from an object-only reference or restores "

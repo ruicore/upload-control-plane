@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import time
 from collections import defaultdict
 from collections.abc import Mapping
@@ -161,6 +162,42 @@ class MetricsRegistry:
     def observe(self, name: str, value: float, labels: Mapping[str, str] | None = None) -> None:
         self._histograms[(name, _label_key(labels))].append(value)
 
+    def storage_backpressure_reason(
+        self,
+        *,
+        error_rate_threshold: float,
+        p95_latency_ms: int,
+    ) -> str | None:
+        observations = [
+            value
+            for (name, _labels), values in self._histograms.items()
+            if name == "storage_operation_duration_seconds"
+            for value in values
+        ]
+        if not observations:
+            return None
+
+        error_count = sum(
+            value
+            for (name, _labels), value in self._counters.items()
+            if name == "storage_operation_errors_total"
+        )
+        error_rate = error_count / len(observations)
+        if error_rate_threshold > 0 and error_rate >= error_rate_threshold:
+            return "storage_error_rate"
+
+        if p95_latency_ms > 0:
+            sorted_observations = sorted(observations)
+            p95_index = max(math.ceil(len(sorted_observations) * 0.95) - 1, 0)
+            p95_latency_seconds = sorted_observations[p95_index]
+            if p95_latency_seconds * 1000 >= p95_latency_ms:
+                return "storage_p95_latency"
+        return None
+
+    def reset_for_tests(self) -> None:
+        self._counters.clear()
+        self._histograms.clear()
+
     def render(self, session: Session | None = None) -> str:
         lines: list[str] = []
         _render_counter(
@@ -218,6 +255,21 @@ class MetricsRegistry:
 
 
 metrics_registry = MetricsRegistry()
+
+
+def storage_backpressure_reason(
+    *,
+    error_rate_threshold: float,
+    p95_latency_ms: int,
+) -> str | None:
+    return metrics_registry.storage_backpressure_reason(
+        error_rate_threshold=error_rate_threshold,
+        p95_latency_ms=p95_latency_ms,
+    )
+
+
+def record_storage_backpressure_reject(reason: str) -> None:
+    metrics_registry.increment("storage_backpressure_rejects_total", {"reason": reason})
 
 
 def render_operational_metrics(lines: list[str], session: Session) -> None:

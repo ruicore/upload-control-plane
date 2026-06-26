@@ -53,6 +53,7 @@ from upload_control_plane.infrastructure.db.seed import (
 )
 from upload_control_plane.infrastructure.db.session import build_engine, build_session_factory
 from upload_control_plane.main import create_app
+from upload_control_plane.observability import metrics_registry
 
 
 def test_upload_task_create_requires_bearer_auth() -> None:
@@ -487,6 +488,50 @@ def test_upload_task_create_rejects_kms_policy_when_adapter_cannot_provide_kms()
             assert policy is not None
             policy.encryption_mode = get_settings().s3_default_encryption_mode
             policy.kms_key_ref = get_settings().s3_default_kms_key_ref or None
+        _delete_upload_artifacts(session_factory, idempotency_key)
+
+
+def test_upload_task_create_rejects_storage_backpressure_before_storage() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = FakeObjectStorage()
+    idempotency_key = "idem-backpressure-create"
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+
+    metrics_registry.reset_for_tests()
+    try:
+        metrics_registry.observe(
+            "storage_operation_duration_seconds",
+            0.1,
+            {"operation": "create_multipart_upload"},
+        )
+        metrics_registry.increment(
+            "storage_operation_errors_total",
+            {"operation": "create_multipart_upload", "error_code": "StorageOperationError"},
+        )
+        client = _client(session_factory, storage=storage)
+        response = client.post(
+            f"/v1/projects/{seed.project_id}/upload-tasks",
+            headers={
+                **_auth_headers("req-upload-storage-backpressure"),
+                "Idempotency-Key": idempotency_key,
+            },
+            json=_valid_payload(),
+        )
+
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "storage.backpressure"
+        assert response.json()["error"]["details"] == {
+            "reason": "storage_error_rate",
+            "retry_after_seconds": 30,
+        }
+        assert storage.create_calls == []
+        metrics = client.get("/metrics")
+        assert metrics.status_code == 200
+        assert 'storage_backpressure_rejects_total{reason="storage_error_rate"} 1' in metrics.text
+    finally:
+        metrics_registry.reset_for_tests()
         _delete_upload_artifacts(session_factory, idempotency_key)
 
 

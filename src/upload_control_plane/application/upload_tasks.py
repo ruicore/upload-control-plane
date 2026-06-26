@@ -30,6 +30,10 @@ from upload_control_plane.infrastructure.db.models import (
     UploadSession,
     UploadTask,
 )
+from upload_control_plane.observability import (
+    record_storage_backpressure_reject,
+    storage_backpressure_reason,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +101,7 @@ class UploadTaskCreationService:
         self._settings = settings
 
     def create_upload_task(self, command: CreateUploadTaskCommand) -> CreatedUploadTask:
+        self._reject_storage_backpressure()
         fingerprint = generate_request_fingerprint(
             method="POST",
             path=command.request_path,
@@ -498,6 +503,21 @@ class UploadTaskCreationService:
 
     def _count(self, statement: Select[tuple[int]]) -> int:
         return int(self._session.execute(statement).scalar_one())
+
+    def _reject_storage_backpressure(self) -> None:
+        reason = storage_backpressure_reason(
+            error_rate_threshold=self._settings.backpressure_storage_error_rate_threshold,
+            p95_latency_ms=self._settings.backpressure_storage_p95_latency_ms,
+        )
+        if reason is None:
+            return
+        record_storage_backpressure_reject(reason)
+        raise ApiError(
+            status_code=503,
+            code="storage.backpressure",
+            message="Storage is under backpressure; retry the control-plane request later.",
+            details={"reason": reason, "retry_after_seconds": 30},
+        )
 
 
 def _session_idempotency_key(
