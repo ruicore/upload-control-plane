@@ -39,6 +39,7 @@ from upload_control_plane.infrastructure.db.models import (
     AuditEvent,
     Dataset,
     IdempotencyRecord,
+    OutboxEvent,
     PermissionGrant,
     Tenant,
     UploadEvent,
@@ -979,6 +980,9 @@ def _delete_upload_artifacts(
             .where(AuditEvent.resource_type == "upload_task")
             .where(AuditEvent.resource_id.in_(str(task_id) for task_id in task_ids))
         )
+        aggregate_ids = [*task_ids, *object_ids, *dataset_ids, *session_ids]
+        if aggregate_ids:
+            session.execute(delete(OutboxEvent).where(OutboxEvent.aggregate_id.in_(aggregate_ids)))
         session.execute(delete(UploadSession).where(UploadSession.upload_task_id.in_(task_ids)))
         if object_ids:
             session.execute(delete(UploadObject).where(UploadObject.id.in_(object_ids)))
