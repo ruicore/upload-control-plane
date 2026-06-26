@@ -369,7 +369,13 @@ class UploadSessionRuntimeService:
     ) -> ListRuntimePartsResult:
         upload_session = self._get_session(tenant_id=tenant_id, session_id=session_id)
         storage_observed: tuple[RuntimePartState, ...] | None = None
-        if source in {"storage", "reconcile"}:
+        terminal_session = UploadSessionStatus(upload_session.status) in {
+            UploadSessionStatus.COMPLETED,
+            UploadSessionStatus.ABORTED,
+            UploadSessionStatus.FAILED,
+            UploadSessionStatus.EXPIRED,
+        }
+        if source in {"storage", "reconcile"} and not (source == "reconcile" and terminal_session):
             storage_observed = self._observe_storage_parts(
                 upload_session=upload_session,
                 actor=actor,

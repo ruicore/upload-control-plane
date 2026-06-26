@@ -490,6 +490,52 @@ def test_storage_and_reconcile_sources_use_object_storage_list_parts() -> None:
         _delete_upload_artifacts(session_factory, idempotency_key)
 
 
+def test_reconcile_completed_session_uses_db_parts_without_storage_list() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = RuntimeFakeObjectStorage()
+    idempotency_key = "idem-runtime-reconcile-completed"
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+
+    try:
+        client = _client(session_factory, storage=storage)
+        created = _create_upload_task(client, seed.project_id, idempotency_key)
+        session_id = uuid.UUID(_created_object(created)["session_id"])
+        storage.listed_parts = (
+            ListedPart(part_number=1, etag='"storage-etag"', size_bytes=DEFAULT_PART_SIZE),
+        )
+
+        reconciled = client.get(
+            f"/v1/uploads/{session_id}/parts?source=reconcile",
+            headers=_auth_headers("req-list-reconcile-before-complete"),
+        )
+        assert reconciled.status_code == 200
+        assert len(storage.list_calls) == 1
+
+        with _session_scope(session_factory) as session:
+            upload_session = session.get(UploadSession, session_id)
+            assert upload_session is not None
+            upload_session.status = "COMPLETED"
+            upload_session.uploaded_part_count = 1
+            upload_session.completed_at = datetime.now(UTC)
+            session.commit()
+
+        storage.listed_parts = ()
+        completed_reconcile = client.get(
+            f"/v1/uploads/{session_id}/parts?source=reconcile",
+            headers=_auth_headers("req-list-reconcile-after-complete"),
+        )
+
+        assert completed_reconcile.status_code == 200
+        body = completed_reconcile.json()
+        assert body["uploaded_part_count"] == 1
+        assert body["missing_part_numbers"] == []
+        assert len(storage.list_calls) == 1
+    finally:
+        _delete_upload_artifacts(session_factory, idempotency_key)
+
+
 def test_pause_resume_idempotency_and_presign_guard() -> None:
     session_factory = _db_session_factory_or_skip()
     seed = build_dev_seed_result()
