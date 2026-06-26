@@ -2,7 +2,7 @@
 
 Production-oriented resumable multipart upload control plane for AI, robotics, and industrial data ingestion, using FastAPI, PostgreSQL, and MinIO.
 
-This repository is in the bootstrap phase. The product and engineering design is intentionally more mature than the current implementation: upload APIs, database models, object-storage integration, workers, and client upload flows are not complete yet.
+This repository contains the Python-first implementation of the control plane described by the PRD. It is production-oriented, but it is not production-proven: the local runtime, APIs, workers, validation, observability, and client upload flows are implemented and tested for portfolio readiness, while optional MQTT/Go components and production deployment evidence remain out of scope unless explicitly requested.
 
 ## Design Status
 
@@ -53,16 +53,22 @@ The PRD currently covers:
 
 Implemented today:
 
-- Project structure and packaging.
-- Development tooling and quality gates.
-- Documentation and PRD scaffolding.
+- Project structure, packaging, development tooling, and quality gates.
+- PRD, task packs, orchestration notes, and handoff history.
+- Docker Compose local runtime with FastAPI, PostgreSQL, MinIO, migrations, and seed data.
 - Public upload task and upload session runtime APIs.
 - `uploadctl` Python CLI uploader for direct-to-object-storage multipart uploads.
+- Development-only browser uploader with direct browser-to-object-storage uploads.
+- Dataset lifecycle API, device identity and device upload flow, permission grants, audit, and outbox foundations.
+- Cleanup, validation, outbox, lifecycle, and recovery worker behavior.
+- Observability, metrics, redaction, failure benchmarks, KMS-unavailable handling, restore/rebuild reconciliation, and storage backpressure gate hardening.
 
-Not implemented yet:
+Not implemented unless explicitly requested:
 
-- Cleanup, validation, outbox, and lifecycle workers.
-- MQTT adapter.
+- Optional MQTT adapter.
+- Optional Go uploader.
+- Optional Go edge/control gateway.
+- Production deployment and operations proof beyond the local Docker Compose readiness path.
 
 ## Python CLI Uploader
 
