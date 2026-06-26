@@ -16,17 +16,6 @@ def test_backpressure_rejection_gate_gap() -> None:
 
 @pytest.mark.xfail(
     reason=(
-        "Phase 13 gap: KMS configuration fields exist, but there is no policy path that "
-        "requires KMS and rejects initiation when KMS is unavailable."
-    ),
-    run=False,
-)
-def test_kms_unavailable_rejection_gap() -> None:
-    raise AssertionError("KMS unavailable rejection path not implemented")
-
-
-@pytest.mark.xfail(
-    reason=(
         "Phase 13 gap: completed dataset reconciliation classifies missing-object, "
         "metadata-only, verified, and object-only cases in the lifecycle worker, but no "
         "product path rebuilds dataset DB metadata from an object-only reference or restores "
