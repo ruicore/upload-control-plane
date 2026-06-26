@@ -5,7 +5,7 @@ services:
     environment:
       APP_ENV: local
       APP_NAME: upload-control-plane
-      API_CORS_ALLOWED_ORIGINS: ${API_CORS_ALLOWED_ORIGINS:-["http://localhost:5173"]}
+      API_CORS_ALLOWED_ORIGINS: ${API_CORS_ALLOWED_ORIGINS:-["http://localhost:5173","http://127.0.0.1:5173"]}
       API_CORS_ALLOWED_METHODS: ${API_CORS_ALLOWED_METHODS:-["GET","POST","PATCH","DELETE","OPTIONS"]}
       API_CORS_ALLOWED_HEADERS: ${API_CORS_ALLOWED_HEADERS:-["authorization","content-type","idempotency-key","x-request-id"]}
       API_CORS_EXPOSE_HEADERS: ${API_CORS_EXPOSE_HEADERS:-["x-request-id"]}
@@ -71,7 +71,7 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-      MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_API_CORS_ALLOW_ORIGIN:-http://localhost:5173,http://localhost:3000}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_API_CORS_ALLOW_ORIGIN:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000}
     ports:
       - "${MINIO_HOST_PORT:-19000}:9000"
       - "${MINIO_CONSOLE_HOST_PORT:-19001}:9001"
