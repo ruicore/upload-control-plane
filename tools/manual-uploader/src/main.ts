@@ -179,6 +179,7 @@ async function uploadParts(): Promise<void> {
     alreadyUploadedParts: upload.uploadedParts,
     shouldContinue: () => !pausedLocally,
     onProgress: (progress) => {
+      updateSessionParts(progress.uploadedParts, progress.totalParts);
       updateProgress(progress.uploadedParts, progress.totalParts, progress.uploadedBytes, progress.totalBytes);
       log("part.uploaded", {
         part_number: progress.currentPart,
@@ -327,7 +328,7 @@ function renderSession(session: UploadSessionStatusResponse): void {
     <dt>Dataset</dt><dd>${session.dataset_id ?? "n/a"}</dd>
     <dt>Object</dt><dd>${session.bucket}/${session.object_key}</dd>
     <dt>File</dt><dd>${session.original_filename}</dd>
-    <dt>Parts</dt><dd>${session.uploaded_part_count}/${session.part_count}</dd>
+    <dt>Parts</dt><dd><span id="sessionUploadedParts">${session.uploaded_part_count}</span>/<span id="sessionTotalParts">${session.part_count}</span></dd>
     <dt>Expires</dt><dd>${session.expires_at}</dd>
   `;
   updateProgress(
@@ -336,6 +337,13 @@ function renderSession(session: UploadSessionStatusResponse): void {
     0,
     session.file_size_bytes
   );
+}
+
+function updateSessionParts(uploadedParts: number, totalParts: number): void {
+  const uploadedElement = document.querySelector<HTMLElement>("#sessionUploadedParts");
+  const totalElement = document.querySelector<HTMLElement>("#sessionTotalParts");
+  if (uploadedElement) uploadedElement.textContent = String(uploadedParts);
+  if (totalElement) totalElement.textContent = String(totalParts);
 }
 
 function updateProgress(uploadedParts: number, totalParts: number, uploadedBytes: number, totalBytes: number): void {
