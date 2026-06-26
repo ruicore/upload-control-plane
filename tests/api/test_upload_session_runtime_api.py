@@ -39,6 +39,7 @@ from upload_control_plane.infrastructure.db.models import (
     AuditEvent,
     Dataset,
     IdempotencyRecord,
+    OutboxEvent,
     PermissionGrant,
     Tenant,
     UploadEvent,
@@ -55,6 +56,7 @@ from upload_control_plane.infrastructure.db.seed import (
 )
 from upload_control_plane.infrastructure.db.session import build_engine, build_session_factory
 from upload_control_plane.main import create_app
+from upload_control_plane.observability import metrics_registry
 
 
 def test_runtime_status_presign_ack_and_db_list_parts() -> None:
@@ -261,6 +263,48 @@ def test_presign_expiry_is_bounded_and_expired_sessions_are_gone() -> None:
         assert expired.json()["error"]["details"]["status"] == "EXPIRED"
         assert len(storage.presign_calls) == 1
     finally:
+        _delete_upload_artifacts(session_factory, idempotency_key)
+
+
+def test_presign_rejects_storage_backpressure_before_signing_parts() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = RuntimeFakeObjectStorage()
+    idempotency_key = "idem-runtime-metrics-backpressure-presign"
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+
+    metrics_registry.reset_for_tests()
+    try:
+        client = _client(session_factory, storage=storage)
+        created = _create_upload_task(client, seed.project_id, idempotency_key)
+        session_id = uuid.UUID(_created_object(created)["session_id"])
+        metrics_registry.reset_for_tests()
+        metrics_registry.observe(
+            "storage_operation_duration_seconds",
+            6.0,
+            {"operation": "presign_upload_part"},
+        )
+
+        response = client.post(
+            f"/v1/uploads/{session_id}/parts/presign",
+            headers=_auth_headers("req-presign-storage-backpressure"),
+            json={"part_numbers": [1]},
+        )
+
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "storage.backpressure"
+        assert response.json()["error"]["details"] == {
+            "source": "storage_health",
+            "reason": "storage_p95_latency",
+            "retry_after_seconds": 30,
+        }
+        assert storage.presign_calls == []
+        metrics = client.get("/metrics")
+        assert metrics.status_code == 200
+        assert 'storage_backpressure_rejects_total{reason="storage_p95_latency"} 1' in metrics.text
+    finally:
+        metrics_registry.reset_for_tests()
         _delete_upload_artifacts(session_factory, idempotency_key)
 
 
@@ -979,6 +1023,9 @@ def _delete_upload_artifacts(
             .where(AuditEvent.resource_type == "upload_task")
             .where(AuditEvent.resource_id.in_(str(task_id) for task_id in task_ids))
         )
+        aggregate_ids = [*task_ids, *object_ids, *dataset_ids, *session_ids]
+        if aggregate_ids:
+            session.execute(delete(OutboxEvent).where(OutboxEvent.aggregate_id.in_(aggregate_ids)))
         session.execute(delete(UploadSession).where(UploadSession.upload_task_id.in_(task_ids)))
         if object_ids:
             session.execute(delete(UploadObject).where(UploadObject.id.in_(object_ids)))

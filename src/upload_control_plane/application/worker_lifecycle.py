@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -15,6 +16,7 @@ from upload_control_plane.domain.storage import (
     AbortMultipartUploadRequest,
     DeleteObjectRequest,
     HeadObjectRequest,
+    HeadObjectResult,
     ObjectStorage,
     StorageError,
     StorageNotFoundError,
@@ -228,7 +230,7 @@ class WorkerLifecycleService:
             if (ref.bucket, ref.object_key) in known_refs:
                 continue
             try:
-                self._storage.head_object(
+                head = self._storage.head_object(
                     HeadObjectRequest(bucket=ref.bucket, object_key=ref.object_key)
                 )
             except StorageNotFoundError:
@@ -236,6 +238,8 @@ class WorkerLifecycleService:
             except StorageError:
                 errors += 1
                 continue
+            if self._rebuild_object_only_dataset(ref, head=head, now=now):
+                known_refs.add((ref.bucket, ref.object_key))
             object_only += 1
 
         self._session.commit()
@@ -399,7 +403,8 @@ class WorkerLifecycleService:
             )
             return None
 
-        if dataset.object_size_bytes is not None and dataset.object_size_bytes != head.size_bytes:
+        expected_size = dataset.object_size_bytes or dataset.file_size_bytes
+        if expected_size is not None and expected_size != head.size_bytes:
             dataset.recovery_status = RecoveryStatus.RECOVERY_METADATA_ONLY.value
             dataset.updated_at = now
             self._add_audit(
@@ -408,7 +413,7 @@ class WorkerLifecycleService:
                 result="MISMATCH",
                 metadata={
                     "reason": "object_size_mismatch",
-                    "metadata_size_bytes": dataset.object_size_bytes,
+                    "metadata_size_bytes": expected_size,
                     "storage_size_bytes": head.size_bytes,
                 },
                 now=now,
@@ -418,18 +423,111 @@ class WorkerLifecycleService:
         if dataset.recovery_status in {
             RecoveryStatus.RECOVERY_PENDING.value,
             RecoveryStatus.RECOVERY_VERIFIED.value,
+            RecoveryStatus.RECOVERY_MISSING_OBJECT.value,
         }:
+            before_state = self._dataset_audit_state(dataset)
+            dataset.object_etag = head.etag
+            dataset.object_size_bytes = head.size_bytes
+            dataset.object_version_id = head.version_id
             dataset.recovery_status = RecoveryStatus.RECOVERY_VERIFIED.value
             dataset.updated_at = now
             self._add_audit(
                 dataset,
                 action="dataset.recovery_reconcile",
                 result="SUCCESS",
+                before_state=before_state,
+                after_state=self._dataset_audit_state(dataset),
                 metadata={"object_size_bytes": head.size_bytes},
                 now=now,
             )
             return RecoveryStatus.RECOVERY_VERIFIED
         return RecoveryStatus.NORMAL
+
+    def _rebuild_object_only_dataset(
+        self,
+        ref: ObjectReference,
+        *,
+        head: HeadObjectResult,
+        now: datetime,
+    ) -> bool:
+        tenant_id, project_id, dataset_id = self._object_reference_identity(ref, head=head)
+        if tenant_id is None or project_id is None:
+            return False
+        project = self._session.get(Project, project_id)
+        if project is None or project.tenant_id != tenant_id:
+            return False
+        if dataset_id is not None and self._session.get(Dataset, dataset_id) is not None:
+            return False
+
+        object_name = ref.object_key.rstrip("/").rsplit("/", 1)[-1] or "recovered-object"
+        head_metadata = dict(head.metadata)
+        rebuilt = Dataset(
+            id=dataset_id or uuid.uuid4(),
+            tenant_id=tenant_id,
+            project_id=project_id,
+            name=f"recovered-{object_name}",
+            status=DatasetStatus.QUARANTINED.value,
+            original_filename=object_name,
+            content_type=head_metadata.get("content_type"),
+            file_size_bytes=head.size_bytes,
+            bucket_name=ref.bucket,
+            object_key=ref.object_key,
+            object_etag=head.etag,
+            object_size_bytes=head.size_bytes,
+            object_version_id=head.version_id,
+            validation_status="PENDING",
+            recovery_status=RecoveryStatus.RECOVERY_OBJECT_ONLY.value,
+            preview_status="NOT_AVAILABLE",
+            preview_metadata={},
+            metadata_={
+                "recovery_source": "worker.object_reference",
+                "operator_review_required": True,
+            },
+            labels=["recovery", "object-only"],
+            created_at=now,
+            updated_at=now,
+        )
+        self._session.add(rebuilt)
+        self._session.flush()
+        self._add_audit(
+            rebuilt,
+            action="dataset.recovery_rebuild",
+            result="SUCCESS",
+            after_state=self._dataset_audit_state(rebuilt),
+            metadata={
+                "reason": "object_without_dataset_metadata",
+                "object_size_bytes": head.size_bytes,
+                "operator_review_required": True,
+            },
+            now=now,
+        )
+        return True
+
+    def _object_reference_identity(
+        self,
+        ref: ObjectReference,
+        *,
+        head: HeadObjectResult,
+    ) -> tuple[uuid.UUID | None, uuid.UUID | None, uuid.UUID | None]:
+        metadata = getattr(head, "metadata", {}) or {}
+        tenant_id = _uuid_from_metadata(metadata, "tenant_id")
+        project_id = _uuid_from_metadata(metadata, "project_id")
+        dataset_id = _uuid_from_metadata(metadata, "dataset_id")
+        if tenant_id is not None and project_id is not None:
+            return tenant_id, project_id, dataset_id
+
+        parts = ref.object_key.split("/")
+        try:
+            tenant_index = parts.index("tenants")
+            project_index = parts.index("projects")
+            dataset_index = parts.index("datasets")
+        except ValueError:
+            return tenant_id, project_id, dataset_id
+        return (
+            tenant_id or _parse_uuid_at(parts, tenant_index + 1),
+            project_id or _parse_uuid_at(parts, project_index + 1),
+            dataset_id or _parse_uuid_at(parts, dataset_index + 1),
+        )
 
     def _storage_policy_for_dataset(self, dataset: Dataset) -> StoragePolicy | None:
         project = self._session.get(Project, dataset.project_id)
@@ -622,3 +720,24 @@ def _upload_task_status(status: UploadSessionStatus) -> str:
 
 def _iso(value: datetime | None) -> str | None:
     return value.isoformat() if value is not None else None
+
+
+def _uuid_from_metadata(metadata: object, key: str) -> uuid.UUID | None:
+    if not isinstance(metadata, Mapping):
+        return None
+    raw = metadata.get(key)
+    if not isinstance(raw, str):
+        return None
+    try:
+        return uuid.UUID(raw)
+    except ValueError:
+        return None
+
+
+def _parse_uuid_at(parts: list[str], index: int) -> uuid.UUID | None:
+    if index >= len(parts):
+        return None
+    try:
+        return uuid.UUID(parts[index])
+    except ValueError:
+        return None

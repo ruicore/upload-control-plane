@@ -31,13 +31,16 @@ from upload_control_plane.domain.storage import (
     PresignedPartUrl,
     PresignUploadPartRequest,
     StorageCapabilities,
+    StorageOperationError,
 )
 from upload_control_plane.infrastructure.db.models import (
     AuditEvent,
     Dataset,
     IdempotencyRecord,
+    OutboxEvent,
     PermissionGrant,
     Project,
+    StoragePolicy,
     UploadEvent,
     UploadObject,
     UploadSession,
@@ -51,6 +54,7 @@ from upload_control_plane.infrastructure.db.seed import (
 )
 from upload_control_plane.infrastructure.db.session import build_engine, build_session_factory
 from upload_control_plane.main import create_app
+from upload_control_plane.observability import metrics_registry
 
 
 def test_upload_task_create_requires_bearer_auth() -> None:
@@ -437,6 +441,57 @@ def test_upload_task_create_rejects_project_byte_quota_before_storage() -> None:
     assert storage.create_calls == []
 
 
+def test_upload_task_create_rejects_kms_policy_when_adapter_cannot_provide_kms() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = FakeObjectStorage(capabilities=StorageCapabilities())
+    idempotency_key = "idem-kms-unavailable"
+    kms_key_ref = "arn:aws:kms:local-dev:111122223333:key/non-secret-key-ref"
+
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+        policy = session.get(StoragePolicy, seed.storage_policy_id)
+        assert policy is not None
+        policy.encryption_mode = "SSE_KMS"
+        policy.kms_key_ref = kms_key_ref
+        before_task_count = session.scalar(select(func.count()).select_from(UploadTask))
+        before_session_count = session.scalar(select(func.count()).select_from(UploadSession))
+
+    try:
+        client = _client(session_factory, storage=storage)
+        response = client.post(
+            f"/v1/projects/{seed.project_id}/upload-tasks",
+            headers={
+                **_auth_headers("req-upload-kms-unavailable"),
+                "Idempotency-Key": idempotency_key,
+            },
+            json=_valid_payload(),
+        )
+
+        assert response.status_code == 503
+        body = response.json()
+        assert body["error"]["code"] == "storage_policy.kms_unavailable"
+        assert body["error"]["details"] == {"reason": "unsupported_encryption_mode"}
+        assert kms_key_ref not in response.text
+        assert storage.create_calls == []
+
+        with _session_scope(session_factory) as session:
+            after_task_count = session.scalar(select(func.count()).select_from(UploadTask))
+            after_session_count = session.scalar(select(func.count()).select_from(UploadSession))
+
+        assert before_task_count is not None
+        assert before_session_count is not None
+        assert after_task_count == before_task_count
+        assert after_session_count == before_session_count
+    finally:
+        with _session_scope(session_factory) as session:
+            policy = session.get(StoragePolicy, seed.storage_policy_id)
+            assert policy is not None
+            policy.encryption_mode = get_settings().s3_default_encryption_mode
+            policy.kms_key_ref = get_settings().s3_default_kms_key_ref or None
+        _delete_upload_artifacts(session_factory, idempotency_key)
+
+
 def test_upload_task_create_rejects_storage_backpressure_before_storage() -> None:
     session_factory = _db_session_factory_or_skip()
     seed = build_dev_seed_result()
@@ -468,6 +523,112 @@ def test_upload_task_create_rejects_storage_backpressure_before_storage() -> Non
         "retry_after_seconds": 30,
     }
     assert storage.create_calls == []
+
+
+def test_upload_task_create_rejects_metrics_backpressure_before_storage() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = FakeObjectStorage()
+    idempotency_key = "idem-metrics-backpressure-create"
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+
+    metrics_registry.reset_for_tests()
+    try:
+        metrics_registry.observe(
+            "storage_operation_duration_seconds",
+            0.1,
+            {"operation": "create_multipart_upload"},
+        )
+        metrics_registry.increment(
+            "storage_operation_errors_total",
+            {"operation": "create_multipart_upload", "error_code": "StorageOperationError"},
+        )
+        client = _client(session_factory, storage=storage)
+        response = client.post(
+            f"/v1/projects/{seed.project_id}/upload-tasks",
+            headers={
+                **_auth_headers("req-upload-storage-backpressure"),
+                "Idempotency-Key": idempotency_key,
+            },
+            json=_valid_payload(),
+        )
+
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "storage.backpressure"
+        assert response.json()["error"]["details"] == {
+            "source": "storage_health",
+            "reason": "storage_error_rate",
+            "retry_after_seconds": 30,
+        }
+        assert storage.create_calls == []
+        metrics = client.get("/metrics")
+        assert metrics.status_code == 200
+        assert 'storage_backpressure_rejects_total{reason="storage_error_rate"} 1' in metrics.text
+    finally:
+        metrics_registry.reset_for_tests()
+        _delete_upload_artifacts(session_factory, idempotency_key)
+
+
+def test_upload_task_create_rejects_kms_provider_failure_without_persisting_session() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    kms_key_ref = "arn:aws:kms:local-dev:111122223333:key/non-secret-key-ref"
+    storage = FakeObjectStorage(
+        capabilities=StorageCapabilities(supported_encryption_modes=frozenset({"SSE_KMS"})),
+        create_error=StorageOperationError(
+            "provider KMS failure for hidden key material",
+            operation="create_multipart_upload",
+            provider_code="KMSUnavailableException",
+            retryable=True,
+        ),
+    )
+    idempotency_key = "idem-kms-provider-unavailable"
+
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+        policy = session.get(StoragePolicy, seed.storage_policy_id)
+        assert policy is not None
+        policy.encryption_mode = "SSE_KMS"
+        policy.kms_key_ref = kms_key_ref
+        before_task_count = session.scalar(select(func.count()).select_from(UploadTask))
+        before_session_count = session.scalar(select(func.count()).select_from(UploadSession))
+
+    try:
+        client = _client(session_factory, storage=storage)
+        response = client.post(
+            f"/v1/projects/{seed.project_id}/upload-tasks",
+            headers={
+                **_auth_headers("req-upload-kms-provider-unavailable"),
+                "Idempotency-Key": idempotency_key,
+            },
+            json=_valid_payload(),
+        )
+
+        assert response.status_code == 503
+        body = response.json()
+        assert body["error"]["code"] == "storage_policy.kms_unavailable"
+        assert body["error"]["details"] == {"reason": "kms_provider_unavailable"}
+        assert kms_key_ref not in response.text
+        assert "hidden key material" not in response.text
+        assert len(storage.create_calls) == 1
+        assert storage.create_calls[0]["encryption_mode"] == "SSE_KMS"
+
+        with _session_scope(session_factory) as session:
+            after_task_count = session.scalar(select(func.count()).select_from(UploadTask))
+            after_session_count = session.scalar(select(func.count()).select_from(UploadSession))
+
+        assert before_task_count is not None
+        assert before_session_count is not None
+        assert after_task_count == before_task_count
+        assert after_session_count == before_session_count
+    finally:
+        with _session_scope(session_factory) as session:
+            policy = session.get(StoragePolicy, seed.storage_policy_id)
+            assert policy is not None
+            policy.encryption_mode = get_settings().s3_default_encryption_mode
+            policy.kms_key_ref = get_settings().s3_default_kms_key_ref or None
+        _delete_upload_artifacts(session_factory, idempotency_key)
 
 
 def _invalid_payload(case: str) -> dict[str, object]:
@@ -718,12 +879,20 @@ def _delete_upload_artifacts(session_factory: sessionmaker[Session], idempotency
                 select(UploadObject.dataset_id).where(UploadObject.upload_task_id.in_(task_ids))
             )
         )
+        session_ids = list(
+            session.scalars(
+                select(UploadSession.id).where(UploadSession.upload_task_id.in_(task_ids))
+            )
+        )
         session.execute(delete(UploadEvent).where(UploadEvent.upload_task_id.in_(task_ids)))
         session.execute(
             delete(AuditEvent)
             .where(AuditEvent.resource_type == "upload_task")
             .where(AuditEvent.resource_id.in_(str(task_id) for task_id in task_ids))
         )
+        aggregate_ids = [*task_ids, *object_ids, *dataset_ids, *session_ids]
+        if aggregate_ids:
+            session.execute(delete(OutboxEvent).where(OutboxEvent.aggregate_id.in_(aggregate_ids)))
         session.execute(delete(UploadSession).where(UploadSession.upload_task_id.in_(task_ids)))
         if object_ids:
             session.execute(delete(UploadObject).where(UploadObject.id.in_(object_ids)))
@@ -734,24 +903,34 @@ def _delete_upload_artifacts(session_factory: sessionmaker[Session], idempotency
 
 
 class FakeObjectStorage:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        capabilities: StorageCapabilities | None = None,
+        create_error: StorageOperationError | None = None,
+    ) -> None:
         self.create_calls: list[dict[str, str | None]] = []
+        self._capabilities = capabilities or StorageCapabilities()
+        self._create_error = create_error
 
     @property
     def capabilities(self) -> StorageCapabilities:
-        return StorageCapabilities()
+        return self._capabilities
 
     def create_multipart_upload(
         self,
         request: CreateMultipartUploadRequest,
     ) -> CreateMultipartUploadResult:
-        self.create_calls.append(
-            {
-                "bucket": request.bucket,
-                "object_key": request.object_key,
-                "content_type": request.content_type,
-            }
-        )
+        create_call = {
+            "bucket": request.bucket,
+            "object_key": request.object_key,
+            "content_type": request.content_type,
+        }
+        if request.encryption:
+            create_call["encryption_mode"] = request.encryption.get("mode")
+        self.create_calls.append(create_call)
+        if self._create_error is not None:
+            raise self._create_error
         return CreateMultipartUploadResult(upload_id=f"fake-upload-{len(self.create_calls)}")
 
     def presign_upload_part(self, request: PresignUploadPartRequest) -> PresignedPartUrl:

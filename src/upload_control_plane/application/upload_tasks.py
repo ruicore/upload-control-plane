@@ -17,6 +17,7 @@ from upload_control_plane.domain.object_keys import build_object_key
 from upload_control_plane.domain.storage import (
     CreateMultipartUploadRequest,
     ObjectStorage,
+    StorageCapabilities,
     StorageError,
 )
 from upload_control_plane.infrastructure.db.models import (
@@ -112,6 +113,7 @@ class UploadTaskCreationService:
         now = datetime.now(UTC)
         storage_policy = self._select_storage_policy(command)
         self._validate_quota_before_storage(command)
+        _validate_storage_policy_capabilities(storage_policy, self._storage.capabilities)
 
         task = UploadTask(
             id=uuid.uuid4(),
@@ -150,6 +152,13 @@ class UploadTaskCreationService:
                     )
                 )
         except StorageError as exc:
+            if _is_kms_initiation_failure(storage_policy, exc):
+                raise ApiError(
+                    status_code=503,
+                    code="storage_policy.kms_unavailable",
+                    message="Storage policy requires KMS, but KMS is unavailable.",
+                    details={"reason": "kms_provider_unavailable"},
+                ) from exc
             raise ApiError(
                 status_code=502,
                 code="storage.multipart_initiation_failed",
@@ -510,6 +519,38 @@ def _encryption_policy(storage_policy: StoragePolicy) -> dict[str, str] | None:
     if storage_policy.kms_key_ref:
         values["kms_key_ref"] = storage_policy.kms_key_ref
     return values
+
+
+def _validate_storage_policy_capabilities(
+    storage_policy: StoragePolicy,
+    capabilities: StorageCapabilities,
+) -> None:
+    if storage_policy.encryption_mode != "SSE_KMS":
+        return
+
+    if not storage_policy.kms_key_ref:
+        raise ApiError(
+            status_code=503,
+            code="storage_policy.kms_unavailable",
+            message="Storage policy requires KMS, but KMS configuration is unavailable.",
+            details={"reason": "missing_kms_key_ref"},
+        )
+    if "SSE_KMS" not in capabilities.supported_encryption_modes:
+        raise ApiError(
+            status_code=503,
+            code="storage_policy.kms_unavailable",
+            message="Storage policy requires KMS, but the storage adapter cannot provide it.",
+            details={"reason": "unsupported_encryption_mode"},
+        )
+
+
+def _is_kms_initiation_failure(storage_policy: StoragePolicy, exc: StorageError) -> bool:
+    if storage_policy.encryption_mode != "SSE_KMS":
+        return False
+    if exc.operation != "create_multipart_upload":
+        return False
+    provider_code = (exc.provider_code or "").lower()
+    return "kms" in provider_code
 
 
 def _object_lock_policy(

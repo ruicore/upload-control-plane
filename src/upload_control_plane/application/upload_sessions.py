@@ -207,7 +207,6 @@ class UploadSessionRuntimeService:
                 code="upload.storage_upload_missing",
                 message="Upload session has no storage multipart upload ID.",
             )
-
         reject_if_storage_backpressure(self._settings)
 
         bounded_expiry = min(expires_in_seconds, self._settings.max_presign_expiry_seconds)
