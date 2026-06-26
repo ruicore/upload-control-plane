@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session, sessionmaker
@@ -556,6 +556,7 @@ def _delete_t11_artifacts(session: Session) -> None:
             )
         )
     )
+    recovery_outbox_dataset_ids = _worker_lifecycle_recovery_outbox_dataset_ids(session)
     session_ids = list(
         session.scalars(select(UploadSession.id).where(UploadSession.upload_task_id.in_(task_ids)))
     )
@@ -572,6 +573,14 @@ def _delete_t11_artifacts(session: Session) -> None:
                 & (OutboxEvent.aggregate_id.in_(dataset_ids))
             )
         )
+    if recovery_outbox_dataset_ids:
+        session.execute(
+            delete(OutboxEvent).where(
+                (OutboxEvent.aggregate_type == "dataset")
+                & (OutboxEvent.event_type == "dataset.recovery_reconcile")
+                & (OutboxEvent.aggregate_id.in_(recovery_outbox_dataset_ids))
+            )
+        )
     if session_ids:
         session.execute(
             delete(OutboxEvent).where(
@@ -585,6 +594,21 @@ def _delete_t11_artifacts(session: Session) -> None:
     if dataset_ids:
         session.execute(delete(Dataset).where(Dataset.id.in_(dataset_ids)))
     session.execute(delete(IdempotencyRecord).where(IdempotencyRecord.key.like("t11-%")))
+
+
+def _worker_lifecycle_recovery_outbox_dataset_ids(session: Session) -> list[uuid.UUID]:
+    return list(
+        session.scalars(
+            select(Dataset.id).where(
+                or_(
+                    Dataset.name.like("t11-%"),
+                    Dataset.object_key.like("t11%"),
+                    Dataset.name.like("validation-%"),
+                    Dataset.name.like("ucp-t08-%"),
+                )
+            )
+        )
+    )
 
 
 class WorkerFakeObjectStorage:
