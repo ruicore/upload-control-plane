@@ -1,0 +1,2348 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-06-26T09:13:33+00:00",
+  "repository": {
+    "root": "D:/upload-control-plane",
+    "branch": "agentic-standard/phase-1-baseline",
+    "head": "c021dca8122f34b4c5be15d7d1904e47d989dd13",
+    "status_short": [
+      " A docs/reports/phase-1-baseline/README.md",
+      " A docs/reports/phase-1-baseline/git-boundary.md",
+      "?? docs/reports/phase-1-baseline/repository-inventory.md",
+      "?? docs/reports/phase-1-baseline/repository-metrics.json"
+    ]
+  },
+  "method": {
+    "file_inventory_command": "git ls-files --cached --others --exclude-standard",
+    "included_scope": "tracked files plus non-ignored untracked files in the working tree",
+    "excluded_scope": "ignored files such as .git internals, caches, virtualenvs, and build outputs; no production code was modified",
+    "python_loc_definition": "physical lines per .py file using UTF-8 text decode with replacement; blank and comment lines included",
+    "directory_depth_definition": "for files under src/, tests/, and docs/, depth is the number of directories between that root and the file parent; files directly under the root have depth 0"
+  },
+  "inventory": {
+    "total_files": 277,
+    "extension_counts": {
+      ".css": 1,
+      ".html": 1,
+      ".ini": 1,
+      ".json": 4,
+      ".lock": 1,
+      ".md": 150,
+      ".ps1": 1,
+      ".py": 98,
+      ".toml": 1,
+      ".ts": 9,
+      ".yaml": 1,
+      ".yml": 3,
+      "[no extension]": 6
+    },
+    "top_level_summary": [
+      {
+        "path": "docs/",
+        "file_count": 148,
+        "extension_counts": {
+          ".json": 1,
+          ".md": 147
+        }
+      },
+      {
+        "path": "src/",
+        "file_count": 52,
+        "extension_counts": {
+          ".py": 52
+        }
+      },
+      {
+        "path": "tests/",
+        "file_count": 36,
+        "extension_counts": {
+          ".py": 36
+        }
+      },
+      {
+        "path": "tools/",
+        "file_count": 15,
+        "extension_counts": {
+          ".css": 1,
+          ".html": 1,
+          ".json": 3,
+          ".md": 1,
+          ".ts": 9
+        }
+      },
+      {
+        "path": "migrations/",
+        "file_count": 7,
+        "extension_counts": {
+          ".py": 7
+        }
+      },
+      {
+        "path": "scripts/",
+        "file_count": 5,
+        "extension_counts": {
+          ".ps1": 1,
+          ".py": 3,
+          "[no extension]": 1
+        }
+      },
+      {
+        "path": ".github/",
+        "file_count": 1,
+        "extension_counts": {
+          ".yml": 1
+        }
+      },
+      {
+        "path": ".gitignore",
+        "file_count": 1,
+        "extension_counts": {
+          "[no extension]": 1
+        }
+      },
+      {
+        "path": ".pre-commit-config.yaml",
+        "file_count": 1,
+        "extension_counts": {
+          ".yaml": 1
+        }
+      },
+      {
+        "path": ".python-version",
+        "file_count": 1,
+        "extension_counts": {
+          "[no extension]": 1
+        }
+      },
+      {
+        "path": "CONTRIBUTING.md",
+        "file_count": 1,
+        "extension_counts": {
+          ".md": 1
+        }
+      },
+      {
+        "path": "Dockerfile",
+        "file_count": 1,
+        "extension_counts": {
+          "[no extension]": 1
+        }
+      },
+      {
+        "path": "LICENSE",
+        "file_count": 1,
+        "extension_counts": {
+          "[no extension]": 1
+        }
+      },
+      {
+        "path": "Makefile",
+        "file_count": 1,
+        "extension_counts": {
+          "[no extension]": 1
+        }
+      },
+      {
+        "path": "README.md",
+        "file_count": 1,
+        "extension_counts": {
+          ".md": 1
+        }
+      },
+      {
+        "path": "alembic.ini",
+        "file_count": 1,
+        "extension_counts": {
+          ".ini": 1
+        }
+      },
+      {
+        "path": "docker-compose.yml",
+        "file_count": 1,
+        "extension_counts": {
+          ".yml": 1
+        }
+      },
+      {
+        "path": "mkdocs.yml",
+        "file_count": 1,
+        "extension_counts": {
+          ".yml": 1
+        }
+      },
+      {
+        "path": "pyproject.toml",
+        "file_count": 1,
+        "extension_counts": {
+          ".toml": 1
+        }
+      },
+      {
+        "path": "uv.lock",
+        "file_count": 1,
+        "extension_counts": {
+          ".lock": 1
+        }
+      }
+    ],
+    "files": [
+      {
+        "path": ".github/workflows/ci.yml",
+        "extension": ".yml",
+        "top_level": ".github/"
+      },
+      {
+        "path": ".gitignore",
+        "extension": "[no extension]",
+        "top_level": ".gitignore"
+      },
+      {
+        "path": ".pre-commit-config.yaml",
+        "extension": ".yaml",
+        "top_level": ".pre-commit-config.yaml"
+      },
+      {
+        "path": ".python-version",
+        "extension": "[no extension]",
+        "top_level": ".python-version"
+      },
+      {
+        "path": "CONTRIBUTING.md",
+        "extension": ".md",
+        "top_level": "CONTRIBUTING.md"
+      },
+      {
+        "path": "Dockerfile",
+        "extension": "[no extension]",
+        "top_level": "Dockerfile"
+      },
+      {
+        "path": "LICENSE",
+        "extension": "[no extension]",
+        "top_level": "LICENSE"
+      },
+      {
+        "path": "Makefile",
+        "extension": "[no extension]",
+        "top_level": "Makefile"
+      },
+      {
+        "path": "README.md",
+        "extension": ".md",
+        "top_level": "README.md"
+      },
+      {
+        "path": "alembic.ini",
+        "extension": ".ini",
+        "top_level": "alembic.ini"
+      },
+      {
+        "path": "docker-compose.yml",
+        "extension": ".yml",
+        "top_level": "docker-compose.yml"
+      },
+      {
+        "path": "docs/agentic-engineering/deliverables.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/agentic-engineering/document-structure.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/agentic-engineering/experiment-design.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/agentic-engineering/human-role-and-autonomy.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/agentic-engineering/project-charter.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/benchmarks.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/index.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/industrial_multipart_upload_control_plane_design.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/operations-observability.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/00-executive-summary.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/01-non-negotiable-decisions.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/02-context-goals-scope.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/03-system-architecture.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/04-domain-model.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/05-state-machine.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/06-api-contracts.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/07-database-schema.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/08-storage-adapter-and-object-keys.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/09-security-governance.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/10-retry-resume-completion-lifecycle.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/11-client-and-backend-implementation.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/12-observability-testing-failure-modes.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/13-implementation-plan.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/14-references-and-done.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/prd/industrial-multipart-upload-control-plane/README.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/reports/phase-1-baseline/README.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/reports/phase-1-baseline/git-boundary.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/reports/phase-1-baseline/repository-inventory.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/reports/phase-1-baseline/repository-metrics.json",
+        "extension": ".json",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/README.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/README.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/agent-orchestration.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1458-T00-implementation-foundation-runtime-partial.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1503-T00-validation-foundation-runtime-partial.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1512-T00-repair-foundation-runtime-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1517-T00-validation-foundation-runtime-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1523-T00-merge-foundation-runtime-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1528-T01-implementation-domain-part-state-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1531-T01-validation-domain-part-state-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1537-T01-implementation-domain-dataset-auth-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1540-T01-validation-domain-kernel-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1543-T01-merge-domain-kernel-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1549-T02-implementation-persistence-base-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1553-T02-validation-persistence-base-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1557-T02-merge-persistence-base-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1605-T02-implementation-core-schema-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1609-T02-validation-core-schema-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1611-T02-merge-core-schema-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1619-T02-implementation-dataset-governance-schema-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1623-T02-validation-dataset-governance-schema-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1627-T02-merge-dataset-governance-schema-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1636-T02-implementation-upload-lifecycle-schema-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1640-T02-validation-upload-lifecycle-schema-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1643-T02-merge-upload-lifecycle-schema-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1650-T02-implementation-records-schema-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1654-T02-validation-records-schema-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1656-T02-merge-records-schema-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1703-T02-implementation-seed-dev-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1707-T02-validation-seed-dev-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1712-T02-validation-persistence-foundation-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1716-T02-merge-persistence-foundation-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1723-T03-implementation-auth-foundation-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1727-T03-validation-auth-foundation-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1731-T03-repair-auth-header-contract-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1734-T03-validation-auth-foundation-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260624-1738-T03-merge-auth-foundation-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0409-T03-implementation-permission-project-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0414-T03-validation-authz-project-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0417-T03-merge-authz-project-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0424-T04-implementation-storage-interface-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0427-T04-validation-storage-interface-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0430-T04-merge-storage-interface-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0440-T04-implementation-storage-adapter-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0445-T04-validation-storage-adapter-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0449-T04-merge-storage-adapter-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0456-T05-implementation-upload-task-api-foundation-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0501-T05-validation-upload-task-api-foundation-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0504-T05-merge-upload-task-api-foundation-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0519-T05-implementation-upload-task-transactional-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0524-T05-validation-upload-task-creation-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0530-T05-merge-upload-task-creation-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0545-T06-implementation-runtime-presign-ack-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0552-T06-validation-runtime-presign-ack-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0558-T06-merge-runtime-presign-ack-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-0948-master-handoff-after-T06-presign-ack.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1108-T06-implementation-runtime-lifecycle-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1121-T06-validation-runtime-lifecycle-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1131-T06-merge-runtime-lifecycle-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1134-master-handoff-after-T06-lifecycle-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1237-T09-implementation-dataset-lifecycle-api-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1238-T08-implementation-python-cli-uploader-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1239-T07-implementation-browser-uploader-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1243-T09-validation-dataset-lifecycle-api-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1249-T09-merge-dataset-lifecycle-api-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1254-T08-validation-python-cli-uploader-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1259-T08-merge-python-cli-uploader-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1303-T07-repair-browser-cors-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1321-T07-repair-cors-settings-env-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1323-master-handoff-after-T08-T09-accepted-T07-partial.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1501-T07-validation-browser-uploader-final-retry-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1506-T07-merge-browser-uploader-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1511-T10-implementation-device-identity-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1517-T10-validation-device-identity-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1522-T10-merge-device-identity-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1530-master-handoff-after-T07-T10-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1545-T11-implementation-workers-lifecycle-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1550-T11-validation-workers-lifecycle-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1553-T11-merge-workers-lifecycle-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1602-T11-implementation-workers-outbox-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1607-T11-validation-workers-outbox-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1612-T11-merge-workers-outbox-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1623-T12-implementation-validation-worker-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1628-T12-validation-validation-worker-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1633-T12-merge-validation-worker-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1636-master-handoff-after-T11-accepted-T12-worker-partial.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1708-T12-implementation-validation-api-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1713-T12-validation-validation-api-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1717-T12-merge-validation-api-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1733-T13-implementation-observability-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1737-T13-validation-observability-rejected.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1746-T13-repair-observability-metrics-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1750-T13-validation2-observability-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1753-T13-merge-observability-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1803-T14-implementation-failure-benchmark-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1807-T14-repair-failure-benchmark-gaps-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1817-T14-repair2-quota-backpressure-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260625-1818-T14-validation-failure-benchmark-rejected.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-0934-T14-validation2-failure-benchmark-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-0937-T14-merge-failure-benchmark-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-0939-master-handoff-after-T12-T13-T14-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1002-T14-repair-backpressure-gate-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1002-T14-repair-restore-rebuild-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1003-T15-implementation-backpressure-gate-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1005-T14-repair-kms-unavailable-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1008-T14-validation-backpressure-gate-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1009-T14-validation-kms-unavailable-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1011-T14-validation-restore-rebuild-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1012-T15-merge-backpressure-gate-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1018-master-handoff-after-T15-backpressure-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1020-T14-merge-gap-repairs-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1026-T14-repair-outbox-test-isolation-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1030-T14-repair-outbox-test-isolation2-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1037-T14-final-main-merge-gap-repairs-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1038-master-handoff-after-T14-gap-repairs-and-T15-backpressure.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1040-T15-validation-backpressure-gate-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1054-next-master-remaining-work-and-worktree-archive.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1101-final-readiness-static-validation-accepted.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1107-master-handoff-python-first-final-readiness.md",
+        "extension": ".md",
+        "top_level": "docs/"
+      },
+      {
+        "path": "migrations/env.py",
+        "extension": ".py",
+        "top_level": "migrations/"
+      },
+      {
+        "path": "migrations/versions/20260624_0001_persistence_base.py",
+        "extension": ".py",
+        "top_level": "migrations/"
+      },
+      {
+        "path": "migrations/versions/20260624_0002_core_schema.py",
+        "extension": ".py",
+        "top_level": "migrations/"
+      },
+      {
+        "path": "migrations/versions/20260624_0003_dataset_governance_schema.py",
+        "extension": ".py",
+        "top_level": "migrations/"
+      },
+      {
+        "path": "migrations/versions/20260624_0004_upload_lifecycle_schema.py",
+        "extension": ".py",
+        "top_level": "migrations/"
+      },
+      {
+        "path": "migrations/versions/20260624_0005_validation_audit_outbox_idempotency_schema.py",
+        "extension": ".py",
+        "top_level": "migrations/"
+      },
+      {
+        "path": "migrations/versions/20260625_0006_device_credentials_schema.py",
+        "extension": ".py",
+        "top_level": "migrations/"
+      },
+      {
+        "path": "mkdocs.yml",
+        "extension": ".yml",
+        "top_level": "mkdocs.yml"
+      },
+      {
+        "path": "pyproject.toml",
+        "extension": ".toml",
+        "top_level": "pyproject.toml"
+      },
+      {
+        "path": "scripts/.gitkeep",
+        "extension": "[no extension]",
+        "top_level": "scripts/"
+      },
+      {
+        "path": "scripts/benchmark_upload.py",
+        "extension": ".py",
+        "top_level": "scripts/"
+      },
+      {
+        "path": "scripts/dev.ps1",
+        "extension": ".ps1",
+        "top_level": "scripts/"
+      },
+      {
+        "path": "scripts/migrate.py",
+        "extension": ".py",
+        "top_level": "scripts/"
+      },
+      {
+        "path": "scripts/seed_dev.py",
+        "extension": ".py",
+        "top_level": "scripts/"
+      },
+      {
+        "path": "src/upload_control_plane/__init__.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/api/__init__.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/api/auth.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/api/authorization.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/api/datasets.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/api/devices.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/api/errors.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/api/middleware.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/api/observability.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/api/projects.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/api/request_context.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/api/upload_sessions.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/api/upload_tasks.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/application/__init__.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/application/dataset_validation.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/application/datasets.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/application/devices.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/application/outbox.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/application/storage_backpressure.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/application/upload_sessions.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/application/upload_tasks.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/application/worker_lifecycle.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/cli/__init__.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/cli/client.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/cli/file_ranges.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/cli/main.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/cli/manifest.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/cli/uploader.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/config.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/domain/__init__.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/domain/aggregates.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/domain/datasets.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/domain/errors.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/domain/fingerprints.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/domain/object_keys.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/domain/parts.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/domain/permissions.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/domain/session_state.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/domain/storage.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/__init__.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/db/__init__.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/db/base.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/db/migrations.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/db/models.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/db/seed.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/db/session.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/storage/__init__.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/storage/s3_minio.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/main.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/observability.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/worker/__init__.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "src/upload_control_plane/worker/main.py",
+        "extension": ".py",
+        "top_level": "src/"
+      },
+      {
+        "path": "tests/api/test_auth_foundation.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/api/test_cors.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/api/test_dataset_lifecycle_api.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/api/test_device_identity_api.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/api/test_observability.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/api/test_project_authorization.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/api/test_upload_session_runtime_api.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/api/test_upload_task_api_foundation.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/application/test_dataset_validation_worker.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/application/test_outbox.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/application/test_worker_lifecycle.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/cli/test_cli_commands.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/cli/test_manifest.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/domain/test_aggregates.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/domain/test_datasets.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/domain/test_fingerprints.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/domain/test_object_keys.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/domain/test_parts.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/domain/test_permissions.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/domain/test_session_state.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/domain/test_storage.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/infrastructure/test_alembic_config.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/infrastructure/test_core_schema.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/infrastructure/test_dataset_governance_schema.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/infrastructure/test_db_session.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/infrastructure/test_device_credentials_schema.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/infrastructure/test_records_schema.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/infrastructure/test_s3_storage.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/infrastructure/test_seed_dev.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/infrastructure/test_upload_lifecycle_schema.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/integration/test_s3_storage_minio.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/scripts/test_benchmark_upload.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/test_config.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/test_health.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/test_package.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tests/test_phase13_capability_gaps.py",
+        "extension": ".py",
+        "top_level": "tests/"
+      },
+      {
+        "path": "tools/manual-uploader/README.md",
+        "extension": ".md",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/index.html",
+        "extension": ".html",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/package-lock.json",
+        "extension": ".json",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/package.json",
+        "extension": ".json",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/src/__tests__/fileParts.test.ts",
+        "extension": ".ts",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/src/__tests__/redaction.test.ts",
+        "extension": ".ts",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/src/browserMultipartUploader.ts",
+        "extension": ".ts",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/src/controlPlaneClient.ts",
+        "extension": ".ts",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/src/fileParts.ts",
+        "extension": ".ts",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/src/main.ts",
+        "extension": ".ts",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/src/redaction.ts",
+        "extension": ".ts",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/src/styles.css",
+        "extension": ".css",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/src/types.ts",
+        "extension": ".ts",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/tsconfig.json",
+        "extension": ".json",
+        "top_level": "tools/"
+      },
+      {
+        "path": "tools/manual-uploader/vite.config.ts",
+        "extension": ".ts",
+        "top_level": "tools/"
+      },
+      {
+        "path": "uv.lock",
+        "extension": ".lock",
+        "top_level": "uv.lock"
+      }
+    ]
+  },
+  "python": {
+    "files": [
+      {
+        "path": "migrations/env.py",
+        "loc": 57
+      },
+      {
+        "path": "migrations/versions/20260624_0001_persistence_base.py",
+        "loc": 23
+      },
+      {
+        "path": "migrations/versions/20260624_0002_core_schema.py",
+        "loc": 290
+      },
+      {
+        "path": "migrations/versions/20260624_0003_dataset_governance_schema.py",
+        "loc": 329
+      },
+      {
+        "path": "migrations/versions/20260624_0004_upload_lifecycle_schema.py",
+        "loc": 334
+      },
+      {
+        "path": "migrations/versions/20260624_0005_validation_audit_outbox_idempotency_schema.py",
+        "loc": 266
+      },
+      {
+        "path": "migrations/versions/20260625_0006_device_credentials_schema.py",
+        "loc": 66
+      },
+      {
+        "path": "scripts/benchmark_upload.py",
+        "loc": 180
+      },
+      {
+        "path": "scripts/migrate.py",
+        "loc": 14
+      },
+      {
+        "path": "scripts/seed_dev.py",
+        "loc": 34
+      },
+      {
+        "path": "src/upload_control_plane/__init__.py",
+        "loc": 1
+      },
+      {
+        "path": "src/upload_control_plane/api/__init__.py",
+        "loc": 1
+      },
+      {
+        "path": "src/upload_control_plane/api/auth.py",
+        "loc": 207
+      },
+      {
+        "path": "src/upload_control_plane/api/authorization.py",
+        "loc": 277
+      },
+      {
+        "path": "src/upload_control_plane/api/datasets.py",
+        "loc": 789
+      },
+      {
+        "path": "src/upload_control_plane/api/devices.py",
+        "loc": 402
+      },
+      {
+        "path": "src/upload_control_plane/api/errors.py",
+        "loc": 104
+      },
+      {
+        "path": "src/upload_control_plane/api/middleware.py",
+        "loc": 91
+      },
+      {
+        "path": "src/upload_control_plane/api/observability.py",
+        "loc": 98
+      },
+      {
+        "path": "src/upload_control_plane/api/projects.py",
+        "loc": 103
+      },
+      {
+        "path": "src/upload_control_plane/api/request_context.py",
+        "loc": 24
+      },
+      {
+        "path": "src/upload_control_plane/api/upload_sessions.py",
+        "loc": 689
+      },
+      {
+        "path": "src/upload_control_plane/api/upload_tasks.py",
+        "loc": 273
+      },
+      {
+        "path": "src/upload_control_plane/application/__init__.py",
+        "loc": 1
+      },
+      {
+        "path": "src/upload_control_plane/application/dataset_validation.py",
+        "loc": 450
+      },
+      {
+        "path": "src/upload_control_plane/application/datasets.py",
+        "loc": 1036
+      },
+      {
+        "path": "src/upload_control_plane/application/devices.py",
+        "loc": 487
+      },
+      {
+        "path": "src/upload_control_plane/application/outbox.py",
+        "loc": 219
+      },
+      {
+        "path": "src/upload_control_plane/application/storage_backpressure.py",
+        "loc": 103
+      },
+      {
+        "path": "src/upload_control_plane/application/upload_sessions.py",
+        "loc": 1597
+      },
+      {
+        "path": "src/upload_control_plane/application/upload_tasks.py",
+        "loc": 623
+      },
+      {
+        "path": "src/upload_control_plane/application/worker_lifecycle.py",
+        "loc": 743
+      },
+      {
+        "path": "src/upload_control_plane/cli/__init__.py",
+        "loc": 1
+      },
+      {
+        "path": "src/upload_control_plane/cli/client.py",
+        "loc": 198
+      },
+      {
+        "path": "src/upload_control_plane/cli/file_ranges.py",
+        "loc": 32
+      },
+      {
+        "path": "src/upload_control_plane/cli/main.py",
+        "loc": 213
+      },
+      {
+        "path": "src/upload_control_plane/cli/manifest.py",
+        "loc": 171
+      },
+      {
+        "path": "src/upload_control_plane/cli/uploader.py",
+        "loc": 423
+      },
+      {
+        "path": "src/upload_control_plane/config.py",
+        "loc": 147
+      },
+      {
+        "path": "src/upload_control_plane/domain/__init__.py",
+        "loc": 154
+      },
+      {
+        "path": "src/upload_control_plane/domain/aggregates.py",
+        "loc": 72
+      },
+      {
+        "path": "src/upload_control_plane/domain/datasets.py",
+        "loc": 134
+      },
+      {
+        "path": "src/upload_control_plane/domain/errors.py",
+        "loc": 17
+      },
+      {
+        "path": "src/upload_control_plane/domain/fingerprints.py",
+        "loc": 56
+      },
+      {
+        "path": "src/upload_control_plane/domain/object_keys.py",
+        "loc": 49
+      },
+      {
+        "path": "src/upload_control_plane/domain/parts.py",
+        "loc": 84
+      },
+      {
+        "path": "src/upload_control_plane/domain/permissions.py",
+        "loc": 175
+      },
+      {
+        "path": "src/upload_control_plane/domain/session_state.py",
+        "loc": 109
+      },
+      {
+        "path": "src/upload_control_plane/domain/storage.py",
+        "loc": 409
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/__init__.py",
+        "loc": 1
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/db/__init__.py",
+        "loc": 55
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/db/base.py",
+        "loc": 16
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/db/migrations.py",
+        "loc": 16
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/db/models.py",
+        "loc": 1159
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/db/seed.py",
+        "loc": 258
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/db/session.py",
+        "loc": 34
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/storage/__init__.py",
+        "loc": 13
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/storage/s3_minio.py",
+        "loc": 430
+      },
+      {
+        "path": "src/upload_control_plane/main.py",
+        "loc": 73
+      },
+      {
+        "path": "src/upload_control_plane/observability.py",
+        "loc": 760
+      },
+      {
+        "path": "src/upload_control_plane/worker/__init__.py",
+        "loc": 1
+      },
+      {
+        "path": "src/upload_control_plane/worker/main.py",
+        "loc": 161
+      },
+      {
+        "path": "tests/api/test_auth_foundation.py",
+        "loc": 226
+      },
+      {
+        "path": "tests/api/test_cors.py",
+        "loc": 76
+      },
+      {
+        "path": "tests/api/test_dataset_lifecycle_api.py",
+        "loc": 926
+      },
+      {
+        "path": "tests/api/test_device_identity_api.py",
+        "loc": 519
+      },
+      {
+        "path": "tests/api/test_observability.py",
+        "loc": 514
+      },
+      {
+        "path": "tests/api/test_project_authorization.py",
+        "loc": 259
+      },
+      {
+        "path": "tests/api/test_upload_session_runtime_api.py",
+        "loc": 1151
+      },
+      {
+        "path": "tests/api/test_upload_task_api_foundation.py",
+        "loc": 949
+      },
+      {
+        "path": "tests/application/test_dataset_validation_worker.py",
+        "loc": 416
+      },
+      {
+        "path": "tests/application/test_outbox.py",
+        "loc": 363
+      },
+      {
+        "path": "tests/application/test_worker_lifecycle.py",
+        "loc": 669
+      },
+      {
+        "path": "tests/cli/test_cli_commands.py",
+        "loc": 101
+      },
+      {
+        "path": "tests/cli/test_manifest.py",
+        "loc": 81
+      },
+      {
+        "path": "tests/domain/test_aggregates.py",
+        "loc": 60
+      },
+      {
+        "path": "tests/domain/test_datasets.py",
+        "loc": 102
+      },
+      {
+        "path": "tests/domain/test_fingerprints.py",
+        "loc": 66
+      },
+      {
+        "path": "tests/domain/test_object_keys.py",
+        "loc": 46
+      },
+      {
+        "path": "tests/domain/test_parts.py",
+        "loc": 76
+      },
+      {
+        "path": "tests/domain/test_permissions.py",
+        "loc": 128
+      },
+      {
+        "path": "tests/domain/test_session_state.py",
+        "loc": 109
+      },
+      {
+        "path": "tests/domain/test_storage.py",
+        "loc": 231
+      },
+      {
+        "path": "tests/infrastructure/test_alembic_config.py",
+        "loc": 47
+      },
+      {
+        "path": "tests/infrastructure/test_core_schema.py",
+        "loc": 83
+      },
+      {
+        "path": "tests/infrastructure/test_dataset_governance_schema.py",
+        "loc": 153
+      },
+      {
+        "path": "tests/infrastructure/test_db_session.py",
+        "loc": 28
+      },
+      {
+        "path": "tests/infrastructure/test_device_credentials_schema.py",
+        "loc": 45
+      },
+      {
+        "path": "tests/infrastructure/test_records_schema.py",
+        "loc": 166
+      },
+      {
+        "path": "tests/infrastructure/test_s3_storage.py",
+        "loc": 232
+      },
+      {
+        "path": "tests/infrastructure/test_seed_dev.py",
+        "loc": 33
+      },
+      {
+        "path": "tests/infrastructure/test_upload_lifecycle_schema.py",
+        "loc": 188
+      },
+      {
+        "path": "tests/integration/test_s3_storage_minio.py",
+        "loc": 127
+      },
+      {
+        "path": "tests/scripts/test_benchmark_upload.py",
+        "loc": 41
+      },
+      {
+        "path": "tests/test_config.py",
+        "loc": 57
+      },
+      {
+        "path": "tests/test_health.py",
+        "loc": 15
+      },
+      {
+        "path": "tests/test_package.py",
+        "loc": 5
+      },
+      {
+        "path": "tests/test_phase13_capability_gaps.py",
+        "loc": 20
+      }
+    ],
+    "loc_stats": {
+      "python_file_count": 98,
+      "max_loc": 1597,
+      "median_loc": 118.0,
+      "mean_loc": 241.22,
+      "thresholds": {
+        "gt_300": {
+          "count": 24,
+          "files": [
+            {
+              "path": "src/upload_control_plane/application/upload_sessions.py",
+              "loc": 1597
+            },
+            {
+              "path": "src/upload_control_plane/infrastructure/db/models.py",
+              "loc": 1159
+            },
+            {
+              "path": "tests/api/test_upload_session_runtime_api.py",
+              "loc": 1151
+            },
+            {
+              "path": "src/upload_control_plane/application/datasets.py",
+              "loc": 1036
+            },
+            {
+              "path": "tests/api/test_upload_task_api_foundation.py",
+              "loc": 949
+            },
+            {
+              "path": "tests/api/test_dataset_lifecycle_api.py",
+              "loc": 926
+            },
+            {
+              "path": "src/upload_control_plane/api/datasets.py",
+              "loc": 789
+            },
+            {
+              "path": "src/upload_control_plane/observability.py",
+              "loc": 760
+            },
+            {
+              "path": "src/upload_control_plane/application/worker_lifecycle.py",
+              "loc": 743
+            },
+            {
+              "path": "src/upload_control_plane/api/upload_sessions.py",
+              "loc": 689
+            },
+            {
+              "path": "tests/application/test_worker_lifecycle.py",
+              "loc": 669
+            },
+            {
+              "path": "src/upload_control_plane/application/upload_tasks.py",
+              "loc": 623
+            },
+            {
+              "path": "tests/api/test_device_identity_api.py",
+              "loc": 519
+            },
+            {
+              "path": "tests/api/test_observability.py",
+              "loc": 514
+            },
+            {
+              "path": "src/upload_control_plane/application/devices.py",
+              "loc": 487
+            },
+            {
+              "path": "src/upload_control_plane/application/dataset_validation.py",
+              "loc": 450
+            },
+            {
+              "path": "src/upload_control_plane/infrastructure/storage/s3_minio.py",
+              "loc": 430
+            },
+            {
+              "path": "src/upload_control_plane/cli/uploader.py",
+              "loc": 423
+            },
+            {
+              "path": "tests/application/test_dataset_validation_worker.py",
+              "loc": 416
+            },
+            {
+              "path": "src/upload_control_plane/domain/storage.py",
+              "loc": 409
+            },
+            {
+              "path": "src/upload_control_plane/api/devices.py",
+              "loc": 402
+            },
+            {
+              "path": "tests/application/test_outbox.py",
+              "loc": 363
+            },
+            {
+              "path": "migrations/versions/20260624_0004_upload_lifecycle_schema.py",
+              "loc": 334
+            },
+            {
+              "path": "migrations/versions/20260624_0003_dataset_governance_schema.py",
+              "loc": 329
+            }
+          ]
+        },
+        "gt_500": {
+          "count": 14,
+          "files": [
+            {
+              "path": "src/upload_control_plane/application/upload_sessions.py",
+              "loc": 1597
+            },
+            {
+              "path": "src/upload_control_plane/infrastructure/db/models.py",
+              "loc": 1159
+            },
+            {
+              "path": "tests/api/test_upload_session_runtime_api.py",
+              "loc": 1151
+            },
+            {
+              "path": "src/upload_control_plane/application/datasets.py",
+              "loc": 1036
+            },
+            {
+              "path": "tests/api/test_upload_task_api_foundation.py",
+              "loc": 949
+            },
+            {
+              "path": "tests/api/test_dataset_lifecycle_api.py",
+              "loc": 926
+            },
+            {
+              "path": "src/upload_control_plane/api/datasets.py",
+              "loc": 789
+            },
+            {
+              "path": "src/upload_control_plane/observability.py",
+              "loc": 760
+            },
+            {
+              "path": "src/upload_control_plane/application/worker_lifecycle.py",
+              "loc": 743
+            },
+            {
+              "path": "src/upload_control_plane/api/upload_sessions.py",
+              "loc": 689
+            },
+            {
+              "path": "tests/application/test_worker_lifecycle.py",
+              "loc": 669
+            },
+            {
+              "path": "src/upload_control_plane/application/upload_tasks.py",
+              "loc": 623
+            },
+            {
+              "path": "tests/api/test_device_identity_api.py",
+              "loc": 519
+            },
+            {
+              "path": "tests/api/test_observability.py",
+              "loc": 514
+            }
+          ]
+        },
+        "gt_800": {
+          "count": 6,
+          "files": [
+            {
+              "path": "src/upload_control_plane/application/upload_sessions.py",
+              "loc": 1597
+            },
+            {
+              "path": "src/upload_control_plane/infrastructure/db/models.py",
+              "loc": 1159
+            },
+            {
+              "path": "tests/api/test_upload_session_runtime_api.py",
+              "loc": 1151
+            },
+            {
+              "path": "src/upload_control_plane/application/datasets.py",
+              "loc": 1036
+            },
+            {
+              "path": "tests/api/test_upload_task_api_foundation.py",
+              "loc": 949
+            },
+            {
+              "path": "tests/api/test_dataset_lifecycle_api.py",
+              "loc": 926
+            }
+          ]
+        },
+        "gt_1000": {
+          "count": 4,
+          "files": [
+            {
+              "path": "src/upload_control_plane/application/upload_sessions.py",
+              "loc": 1597
+            },
+            {
+              "path": "src/upload_control_plane/infrastructure/db/models.py",
+              "loc": 1159
+            },
+            {
+              "path": "tests/api/test_upload_session_runtime_api.py",
+              "loc": 1151
+            },
+            {
+              "path": "src/upload_control_plane/application/datasets.py",
+              "loc": 1036
+            }
+          ]
+        }
+      }
+    },
+    "top_20_largest_files": [
+      {
+        "path": "src/upload_control_plane/application/upload_sessions.py",
+        "loc": 1597
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/db/models.py",
+        "loc": 1159
+      },
+      {
+        "path": "tests/api/test_upload_session_runtime_api.py",
+        "loc": 1151
+      },
+      {
+        "path": "src/upload_control_plane/application/datasets.py",
+        "loc": 1036
+      },
+      {
+        "path": "tests/api/test_upload_task_api_foundation.py",
+        "loc": 949
+      },
+      {
+        "path": "tests/api/test_dataset_lifecycle_api.py",
+        "loc": 926
+      },
+      {
+        "path": "src/upload_control_plane/api/datasets.py",
+        "loc": 789
+      },
+      {
+        "path": "src/upload_control_plane/observability.py",
+        "loc": 760
+      },
+      {
+        "path": "src/upload_control_plane/application/worker_lifecycle.py",
+        "loc": 743
+      },
+      {
+        "path": "src/upload_control_plane/api/upload_sessions.py",
+        "loc": 689
+      },
+      {
+        "path": "tests/application/test_worker_lifecycle.py",
+        "loc": 669
+      },
+      {
+        "path": "src/upload_control_plane/application/upload_tasks.py",
+        "loc": 623
+      },
+      {
+        "path": "tests/api/test_device_identity_api.py",
+        "loc": 519
+      },
+      {
+        "path": "tests/api/test_observability.py",
+        "loc": 514
+      },
+      {
+        "path": "src/upload_control_plane/application/devices.py",
+        "loc": 487
+      },
+      {
+        "path": "src/upload_control_plane/application/dataset_validation.py",
+        "loc": 450
+      },
+      {
+        "path": "src/upload_control_plane/infrastructure/storage/s3_minio.py",
+        "loc": 430
+      },
+      {
+        "path": "src/upload_control_plane/cli/uploader.py",
+        "loc": 423
+      },
+      {
+        "path": "tests/application/test_dataset_validation_worker.py",
+        "loc": 416
+      },
+      {
+        "path": "src/upload_control_plane/domain/storage.py",
+        "loc": 409
+      }
+    ]
+  },
+  "directory_depth": {
+    "src": {
+      "scope": "src/",
+      "file_count": 52,
+      "max_file_directory_depth": 3,
+      "median_file_directory_depth": 2.0,
+      "mean_file_directory_depth": 2.08,
+      "file_count_by_depth": {
+        "1": 4,
+        "2": 40,
+        "3": 8
+      },
+      "deepest_paths_sample": [
+        "src/upload_control_plane/infrastructure/storage/s3_minio.py",
+        "src/upload_control_plane/infrastructure/storage/__init__.py",
+        "src/upload_control_plane/infrastructure/db/session.py",
+        "src/upload_control_plane/infrastructure/db/seed.py",
+        "src/upload_control_plane/infrastructure/db/models.py",
+        "src/upload_control_plane/infrastructure/db/migrations.py",
+        "src/upload_control_plane/infrastructure/db/base.py",
+        "src/upload_control_plane/infrastructure/db/__init__.py",
+        "src/upload_control_plane/worker/main.py",
+        "src/upload_control_plane/worker/__init__.py"
+      ]
+    },
+    "tests": {
+      "scope": "tests/",
+      "file_count": 36,
+      "max_file_directory_depth": 1,
+      "median_file_directory_depth": 1.0,
+      "mean_file_directory_depth": 0.89,
+      "file_count_by_depth": {
+        "0": 4,
+        "1": 32
+      },
+      "deepest_paths_sample": [
+        "tests/scripts/test_benchmark_upload.py",
+        "tests/integration/test_s3_storage_minio.py",
+        "tests/infrastructure/test_upload_lifecycle_schema.py",
+        "tests/infrastructure/test_seed_dev.py",
+        "tests/infrastructure/test_s3_storage.py",
+        "tests/infrastructure/test_records_schema.py",
+        "tests/infrastructure/test_device_credentials_schema.py",
+        "tests/infrastructure/test_db_session.py",
+        "tests/infrastructure/test_dataset_governance_schema.py",
+        "tests/infrastructure/test_core_schema.py"
+      ]
+    },
+    "docs": {
+      "scope": "docs/",
+      "file_count": 148,
+      "max_file_directory_depth": 3,
+      "median_file_directory_depth": 3.0,
+      "mean_file_directory_depth": 2.69,
+      "file_count_by_depth": {
+        "0": 4,
+        "1": 6,
+        "2": 22,
+        "3": 116
+      },
+      "deepest_paths_sample": [
+        "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1107-master-handoff-python-first-final-readiness.md",
+        "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1101-final-readiness-static-validation-accepted.md",
+        "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1054-next-master-remaining-work-and-worktree-archive.md",
+        "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1040-T15-validation-backpressure-gate-accepted.md",
+        "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1038-master-handoff-after-T14-gap-repairs-and-T15-backpressure.md",
+        "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1037-T14-final-main-merge-gap-repairs-accepted.md",
+        "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1030-T14-repair-outbox-test-isolation2-accepted.md",
+        "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1026-T14-repair-outbox-test-isolation-accepted.md",
+        "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1020-T14-merge-gap-repairs-accepted.md",
+        "docs/tasks/industrial-multipart-upload-control-plane/handoffs/20260626-1018-master-handoff-after-T15-backpressure-accepted.md"
+      ]
+    }
+  }
+}
