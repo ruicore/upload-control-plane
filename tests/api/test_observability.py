@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from upload_control_plane.api.auth import get_db_session
 from upload_control_plane.api.request_context import REQUEST_ID_HEADER
 from upload_control_plane.api.upload_tasks import get_object_storage
-from upload_control_plane.config import get_settings
+from upload_control_plane.config import Settings, get_settings
 from upload_control_plane.domain.parts import DEFAULT_PART_SIZE
 from upload_control_plane.domain.storage import (
     AbortMultipartUploadRequest,
@@ -126,6 +126,40 @@ def test_metrics_covers_complete_prd_required_metric_family_list() -> None:
     rendered_families = _rendered_metric_families(response.text)
     required_families = _prd_required_metric_families()
     assert sorted(required_families - rendered_families) == []
+
+
+def test_storage_backpressure_rejection_metric_renders_bounded_reason() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    settings = _settings_override(storage_backpressure_forced_reason="custom-test-reason")
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, settings)
+
+    response = _client(session_factory, settings=settings).post(
+        f"/v1/projects/{seed.project_id}/upload-tasks",
+        headers={
+            **_auth_headers("req-observe-storage-backpressure"),
+            "Idempotency-Key": "idem-observe-storage-backpressure",
+        },
+        json={
+            "task_name": "observability-backpressure",
+            "task_initiator": "api",
+            "objects": [
+                {
+                    "dataset_name": "observability-backpressure",
+                    "object_name": "observability-backpressure.bin",
+                    "file_size_bytes": DEFAULT_PART_SIZE,
+                    "part_size_bytes": DEFAULT_PART_SIZE,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 503
+
+    metrics = _client(session_factory).get("/metrics")
+
+    assert metrics.status_code == 200
+    assert 'storage_backpressure_rejects_total{reason="manual"}' in metrics.text
 
 
 def test_request_logging_carries_request_and_path_context_without_query(
@@ -302,6 +336,7 @@ def _client(
     session_factory: sessionmaker[Session],
     *,
     storage: ObservabilityFakeObjectStorage | None = None,
+    settings: Settings | None = None,
 ) -> TestClient:
     app = create_app()
 
@@ -312,6 +347,8 @@ def _client(
     app.dependency_overrides[get_db_session] = override_session
     if storage is not None:
         app.dependency_overrides[get_object_storage] = lambda: storage
+    if settings is not None:
+        app.dependency_overrides[get_settings] = lambda: settings
     return TestClient(app)
 
 
@@ -339,6 +376,10 @@ def _rendered_metric_families(body: str) -> set[str]:
         if match:
             families.add(match.group("name"))
     return families
+
+
+def _settings_override(**values: object) -> Settings:
+    return get_settings().model_copy(update=values)
 
 
 @contextmanager

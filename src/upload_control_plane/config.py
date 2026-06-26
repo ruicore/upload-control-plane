@@ -105,6 +105,10 @@ class Settings(BaseSettings):
     validation_queue_max_depth: int = 1_000
     backpressure_storage_error_rate_threshold: float = 0.05
     backpressure_storage_p95_latency_ms: int = 5_000
+    storage_backpressure_forced_reason: str = ""
+    storage_backpressure_observed_error_rate: float | None = None
+    storage_backpressure_observed_p95_latency_ms: int | None = None
+    storage_backpressure_retry_after_seconds: int | None = None
     enable_checksum_validator: bool = False
 
     enable_mqtt_control_plane: bool = False

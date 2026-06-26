@@ -437,6 +437,39 @@ def test_upload_task_create_rejects_project_byte_quota_before_storage() -> None:
     assert storage.create_calls == []
 
 
+def test_upload_task_create_rejects_storage_backpressure_before_storage() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = FakeObjectStorage()
+    settings = _settings_override(
+        storage_backpressure_observed_p95_latency_ms=5_000,
+        storage_backpressure_retry_after_seconds=30,
+    )
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, settings)
+
+    client = _client(session_factory, storage=storage, settings=settings)
+    response = client.post(
+        f"/v1/projects/{seed.project_id}/upload-tasks",
+        headers={
+            **_auth_headers("req-upload-storage-backpressure"),
+            "Idempotency-Key": "idem-storage-backpressure-create",
+        },
+        json=_valid_payload(),
+    )
+
+    assert response.status_code == 503
+    assert response.headers["Retry-After"] == "30"
+    body = response.json()
+    assert body["error"]["code"] == "storage.backpressure"
+    assert body["error"]["details"] == {
+        "source": "storage_health",
+        "reason": "latency",
+        "retry_after_seconds": 30,
+    }
+    assert storage.create_calls == []
+
+
 def _invalid_payload(case: str) -> dict[str, object]:
     if case == "empty_objects":
         return {**_valid_payload(), "objects": []}

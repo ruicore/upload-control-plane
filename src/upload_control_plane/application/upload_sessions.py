@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from upload_control_plane.api.auth import AuthenticatedActor
 from upload_control_plane.api.errors import ApiError
+from upload_control_plane.application.storage_backpressure import reject_if_storage_backpressure
 from upload_control_plane.config import Settings
 from upload_control_plane.domain.fingerprints import assert_json_value, generate_request_fingerprint
 from upload_control_plane.domain.parts import get_part_range
@@ -206,6 +207,8 @@ class UploadSessionRuntimeService:
                 code="upload.storage_upload_missing",
                 message="Upload session has no storage multipart upload ID.",
             )
+
+        reject_if_storage_backpressure(self._settings)
 
         bounded_expiry = min(expires_in_seconds, self._settings.max_presign_expiry_seconds)
         now = datetime.now(UTC)

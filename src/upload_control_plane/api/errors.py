@@ -20,11 +20,13 @@ class ApiError(Exception):
         code: str,
         message: str,
         details: Mapping[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> None:
         self.status_code = status_code
         self.code = code
         self.message = message
         self.details = dict(details or {})
+        self.headers = dict(headers or {})
         super().__init__(message)
 
 
@@ -51,10 +53,12 @@ def error_response(
     code: str,
     message: str,
     details: Mapping[str, Any] | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
         content=build_error_payload(code=code, message=message, details=details),
+        headers=dict(headers or {}),
     )
 
 
@@ -66,6 +70,7 @@ async def api_error_handler(_request: Request, exc: Exception) -> JSONResponse:
         code=exc.code,
         message=exc.message,
         details=exc.details,
+        headers=exc.headers,
     )
 
 

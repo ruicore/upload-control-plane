@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from upload_control_plane.api.auth import get_db_session
 from upload_control_plane.api.request_context import REQUEST_ID_HEADER
 from upload_control_plane.api.upload_tasks import get_object_storage
-from upload_control_plane.config import get_settings
+from upload_control_plane.config import Settings, get_settings
 from upload_control_plane.domain.parts import DEFAULT_PART_SIZE
 from upload_control_plane.domain.storage import (
     AbortMultipartUploadRequest,
@@ -178,6 +178,45 @@ def test_presign_rejects_paused_session() -> None:
 
         assert response.status_code == 409
         assert response.json()["error"]["code"] == "upload.invalid_state"
+        assert storage.presign_calls == []
+    finally:
+        _delete_upload_artifacts(session_factory, idempotency_key)
+
+
+def test_presign_rejects_storage_backpressure_before_storage_presign() -> None:
+    session_factory = _db_session_factory_or_skip()
+    seed = build_dev_seed_result()
+    storage = RuntimeFakeObjectStorage()
+    settings = _settings_override(
+        storage_backpressure_forced_reason="error_rate",
+        storage_backpressure_retry_after_seconds=45,
+    )
+    idempotency_key = "idem-runtime-backpressure-presign"
+    with _session_scope(session_factory) as session:
+        seed_dev_data(session, get_settings())
+
+    try:
+        client = _client(session_factory, storage=storage)
+        created = _create_upload_task(client, seed.project_id, idempotency_key)
+        session_id = uuid.UUID(_created_object(created)["session_id"])
+        storage.presign_calls.clear()
+        backpressure_client = _client(session_factory, storage=storage, settings=settings)
+
+        response = backpressure_client.post(
+            f"/v1/uploads/{session_id}/parts/presign",
+            headers=_auth_headers("req-presign-backpressure"),
+            json={"part_numbers": [1], "expires_in_seconds": 600},
+        )
+
+        assert response.status_code == 503
+        assert response.headers["Retry-After"] == "45"
+        body = response.json()
+        assert body["error"]["code"] == "storage.backpressure"
+        assert body["error"]["details"] == {
+            "source": "storage_health",
+            "reason": "error_rate",
+            "retry_after_seconds": 45,
+        }
         assert storage.presign_calls == []
     finally:
         _delete_upload_artifacts(session_factory, idempotency_key)
@@ -835,6 +874,7 @@ def _client(
     session_factory: sessionmaker[Session],
     *,
     storage: RuntimeFakeObjectStorage,
+    settings: Settings | None = None,
 ) -> TestClient:
     app = create_app()
 
@@ -844,6 +884,8 @@ def _client(
 
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_object_storage] = lambda: storage
+    if settings is not None:
+        app.dependency_overrides[get_settings] = lambda: settings
     return TestClient(app)
 
 
@@ -946,6 +988,10 @@ def _delete_upload_artifacts(
         session.execute(
             delete(IdempotencyRecord).where(IdempotencyRecord.key.in_(idempotency_keys))
         )
+
+
+def _settings_override(**values: object) -> Settings:
+    return get_settings().model_copy(update=values)
 
 
 class RuntimeFakeObjectStorage:
