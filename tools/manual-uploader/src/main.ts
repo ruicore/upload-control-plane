@@ -117,9 +117,7 @@ bind("#resumeButton", resumeUpload);
 bind("#statusButton", refreshStatus);
 bind("#reconcileButton", reconcileParts);
 bind("#abortButton", abortUpload);
-bind("#clearLogButton", () => {
-  logElement.textContent = "";
-});
+bind("#clearLogButton", clearLocalState);
 
 function bind(selector: string, handler: () => Promise<void> | void): void {
   query<HTMLButtonElement>(selector).addEventListener("click", () => {
@@ -241,6 +239,16 @@ async function abortUpload(): Promise<void> {
   const result = await clientFrom(formValues()).abort(upload.session.session_id, idempotencyKey("abort"));
   log("session.aborted", result);
   await refreshStatus();
+}
+
+function clearLocalState(): void {
+  currentUpload = null;
+  pausedLocally = false;
+  connectionStatus.textContent = "No session";
+  sessionSummary.innerHTML = "";
+  progressBar.style.width = "0%";
+  progressText.textContent = "No upload started.";
+  logElement.textContent = "";
 }
 
 function mergeUploadedParts(upload: CurrentUpload, result: ListPartsResponse): void {
