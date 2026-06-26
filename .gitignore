@@ -27,3 +27,4 @@ build/
 site/
 
 .worktree-archive/
+.local-logs/
