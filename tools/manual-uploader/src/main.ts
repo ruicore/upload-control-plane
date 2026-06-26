@@ -216,6 +216,7 @@ async function resumeUpload(): Promise<void> {
   const result = await clientFrom(formValues()).resume(upload.session.session_id, idempotencyKey("resume"));
   log("session.resumed", result);
   await refreshStatus();
+  await uploadParts();
 }
 
 async function refreshStatus(): Promise<void> {
