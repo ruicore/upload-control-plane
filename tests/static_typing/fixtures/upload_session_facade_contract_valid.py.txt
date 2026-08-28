@@ -1,0 +1,17 @@
+from __future__ import annotations
+
+from sqlalchemy.orm import Session
+
+from upload_control_plane.application.upload_sessions.service import UploadSessionRuntimeService
+from upload_control_plane.config import Settings
+from upload_control_plane.domain.storage import ObjectStorage
+
+service: UploadSessionRuntimeService
+
+reveal_type(service._session)  # N: Revealed type is "sqlalchemy.orm.session.Session"
+reveal_type(service._storage)  # N: Revealed type is "upload_control_plane.domain.storage.ObjectStorage"
+reveal_type(service._settings)  # N: Revealed type is "upload_control_plane.config.Settings"
+
+session: Session = service._session
+storage: ObjectStorage = service._storage
+settings: Settings = service._settings

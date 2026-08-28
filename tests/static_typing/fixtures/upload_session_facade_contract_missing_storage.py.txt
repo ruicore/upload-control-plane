@@ -1,0 +1,22 @@
+from __future__ import annotations
+
+from abc import ABC
+
+from sqlalchemy.orm import Session
+
+from upload_control_plane.application.upload_sessions.lifecycle import UploadSessionLifecycleMixin
+from upload_control_plane.application.upload_sessions.parts import UploadSessionPartsMixin
+from upload_control_plane.config import Settings
+from upload_control_plane.domain.storage import ObjectStorage
+
+
+class MissingStorageFacade(UploadSessionPartsMixin, UploadSessionLifecycleMixin, ABC):
+    @property
+    def _session(self) -> Session:
+        raise NotImplementedError
+
+    @property
+    def _settings(self) -> Settings:
+        raise NotImplementedError
+
+MissingStorageFacade()  # E: Cannot instantiate abstract class "MissingStorageFacade" with abstract attribute "_storage"  [abstract]

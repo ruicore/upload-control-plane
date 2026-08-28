@@ -1,0 +1,18 @@
+site_name: Upload Control Plane
+site_description: Production-oriented multipart ingestion for research, media, and field data.
+repo_name: upload-control-plane
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - toc.follow
+nav:
+  - Overview: index.md
+  - Product Requirements: prd/resumable-multipart-upload-control-plane/README.md
+  - Operations and Observability: operations-observability.md
+  - Benchmarks: benchmarks.md
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true

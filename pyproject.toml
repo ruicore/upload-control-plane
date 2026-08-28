@@ -1,0 +1,105 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "upload-control-plane"
+version = "0.1.0"
+description = "Production-oriented resumable multipart upload control plane for research, media, and field-data ingestion."
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+authors = [
+  { name = "ruicore" },
+]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+]
+dependencies = [
+  "alembic>=1.16",
+  "boto3>=1.43.36",
+  "fastapi>=0.116.2",
+  "httpx>=0.28.1",
+  "psycopg[binary]>=3.2.10",
+  "pydantic-settings>=2.10.1",
+  "sqlalchemy>=2.0",
+  "typer>=0.19.2",
+  "uvicorn[standard]>=0.35.0",
+]
+
+[project.scripts]
+uploadctl = "upload_control_plane.cli.main:app"
+upload-worker = "upload_control_plane.worker.main:app"
+
+[dependency-groups]
+dev = [
+  "boto3-stubs[s3]>=1.43.36",
+  "mypy>=1.18.2",
+  "pre-commit>=4.3.0",
+  "pytest>=8.4.2",
+  "ruff>=0.13.2",
+]
+docs = [
+  "mkdocs-material>=9.6.20",
+]
+
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/upload_control_plane"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "ARG",
+  "B",
+  "C4",
+  "E",
+  "F",
+  "I",
+  "N",
+  "PTH",
+  "RUF",
+  "SIM",
+  "UP",
+  "W",
+]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["upload_control_plane"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+mypy_path = "src"
+files = ["src", "tests"]
+pretty = true
+show_error_codes = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = [
+  "--strict-config",
+  "--strict-markers",
+]
+testpaths = ["tests"]
+markers = [
+  "integration: tests that require external services such as local MinIO",
+]
